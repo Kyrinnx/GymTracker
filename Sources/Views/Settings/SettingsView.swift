@@ -18,6 +18,7 @@ struct SettingsView: View {
     @AppStorage("reminderWeekdays") private var reminderWeekdaysRaw: String = "2,4,6"
 
     @State private var notifService = NotificationService.shared
+    @State private var healthKitError: String?
     @State private var showResetOnboarding = false
     @AppStorage("onboardingCompleted") private var onboardingCompleted: Bool = false
 
@@ -100,9 +101,18 @@ struct SettingsView: View {
                         get: { healthKitEnabled },
                         set: { newValue in
                             if newValue {
+                                if !HealthKitService.shared.isAvailable {
+                                    healthKitError = "HealthKit n'est pas disponible sur cet appareil. Vérifie que l'app Santé est installée."
+                                    return
+                                }
                                 Task {
                                     let ok = await HealthKitService.shared.requestAuthorization()
-                                    await MainActor.run { healthKitEnabled = ok }
+                                    await MainActor.run {
+                                        healthKitEnabled = ok
+                                        if !ok {
+                                            healthKitError = "L'autorisation a échoué. Va dans Réglages iOS → Santé → Accès données → GymTracker pour autoriser manuellement."
+                                        }
+                                    }
                                 }
                             } else {
                                 healthKitEnabled = false
@@ -112,6 +122,15 @@ struct SettingsView: View {
                         Label("Synchroniser avec Santé", systemImage: "heart.fill")
                     }
                     .tint(theme.color.accent)
+                    if healthKitEnabled {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                            Text("Connecté à Santé")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 } header: {
                     Text("Apple Santé")
                 } footer: {
@@ -119,13 +138,21 @@ struct SettingsView: View {
                         Text("Nutrition (calories, macros, eau) et poids sont envoyés automatiquement dans l'app Santé à chaque ajout.")
                             .font(.caption)
                     } else if !HealthKitService.shared.isAvailable {
-                        Text("HealthKit n'est pas disponible sur cet appareil.")
+                        Text("HealthKit n'est pas disponible. Vérifie que l'app Santé est bien installée sur ton iPhone.")
                             .font(.caption)
                             .foregroundStyle(.orange)
                     } else {
                         Text("Active cette option pour envoyer tes données de nutrition et de poids dans l'app Santé.")
                             .font(.caption)
                     }
+                }
+                .alert("Santé", isPresented: Binding(
+                    get: { healthKitError != nil },
+                    set: { if !$0 { healthKitError = nil } }
+                )) {
+                    Button("OK") {}
+                } message: {
+                    Text(healthKitError ?? "")
                 }
 
                 // MARK: - Notifications
@@ -180,8 +207,45 @@ struct SettingsView: View {
                     }
                 }
 
-                // MARK: - Sauvegardes auto
+                // MARK: - Sauvegardes
                 Section {
+                    // iCloud status — en premier pour que ce soit visible
+                    if cloudFolderConfigured {
+                        HStack {
+                            Image(systemName: AutoBackupService.lastCloudSyncFailed ? "exclamationmark.icloud.fill" : "checkmark.icloud.fill")
+                                .foregroundStyle(AutoBackupService.lastCloudSyncFailed ? .orange : .green)
+                                .font(.title3)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(AutoBackupService.lastCloudSyncFailed ? "Sync iCloud en erreur" : "iCloud Drive activé")
+                                    .font(.subheadline.bold())
+                                Text(AutoBackupService.lastCloudSyncFailed ? "Reconfigure le dossier ci-dessous" : "Tes données sont sauvegardées dans le cloud")
+                                    .font(.caption)
+                                    .foregroundStyle(AutoBackupService.lastCloudSyncFailed ? .orange : .secondary)
+                            }
+                        }
+                    } else {
+                        HStack {
+                            Image(systemName: "exclamationmark.icloud.fill")
+                                .foregroundStyle(.red)
+                                .font(.title3)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("iCloud Drive non configuré")
+                                    .font(.subheadline.bold())
+                                    .foregroundStyle(.red)
+                                Text("Si tu supprimes l'app, tes données seront perdues !")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Button {
+                            showFolderPicker = true
+                        } label: {
+                            Label("Configurer iCloud Drive", systemImage: "icloud.and.arrow.up.fill")
+                        }
+                        .tint(theme.color.accent)
+                    }
+
+                    // Dernière sauvegarde
                     HStack {
                         Image(systemName: "clock.arrow.circlepath")
                             .foregroundStyle(theme.color.accent)
@@ -204,46 +268,29 @@ struct SettingsView: View {
                     } label: {
                         Label("Sauvegarder maintenant", systemImage: "tray.and.arrow.down.fill")
                     }
-                    // Cloud sync folder
-                    if cloudFolderConfigured {
-                        HStack {
-                            Image(systemName: AutoBackupService.lastCloudSyncFailed ? "exclamationmark.icloud.fill" : "checkmark.icloud.fill")
-                                .foregroundStyle(AutoBackupService.lastCloudSyncFailed ? .orange : .green)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(AutoBackupService.lastCloudSyncFailed ? "Sync iCloud en erreur" : "Sync iCloud Drive activée")
-                                    .font(.subheadline)
-                                Text(AutoBackupService.lastCloudSyncFailed ? "Reconfigure le dossier iCloud ci-dessous" : "Les backups sont copiés automatiquement")
-                                    .font(.caption)
-                                    .foregroundStyle(AutoBackupService.lastCloudSyncFailed ? .orange : .secondary)
-                            }
-                        }
-                        Button(role: .destructive) {
-                            AutoBackupService.clearCloudFolder()
-                            cloudFolderConfigured = false
-                        } label: {
-                            Label("Désactiver la sync iCloud", systemImage: "xmark.icloud")
-                        }
-                    } else {
-                        Button {
-                            showFolderPicker = true
-                        } label: {
-                            Label("Activer la sync iCloud Drive", systemImage: "icloud.and.arrow.up.fill")
-                        }
-                    }
                     Button {
                         showBackupsList = true
                     } label: {
                         Label("Voir toutes les sauvegardes", systemImage: "list.bullet.rectangle")
                     }
+                    if cloudFolderConfigured {
+                        Button(role: .destructive) {
+                            AutoBackupService.clearCloudFolder()
+                            cloudFolderConfigured = false
+                        } label: {
+                            Label("Désactiver iCloud Drive", systemImage: "xmark.icloud")
+                        }
+                    }
                 } header: {
                     Text("Sauvegardes")
                 } footer: {
                     if cloudFolderConfigured {
-                        Text("Chaque jour à l'ouverture de l'app, une sauvegarde est créée et copiée automatiquement dans ton dossier iCloud Drive. Tu n'as rien à faire.")
+                        Text("Chaque jour à l'ouverture de l'app, une sauvegarde est créée et copiée dans ton dossier iCloud Drive automatiquement.")
                             .font(.caption)
                     } else {
-                        Text("Une sauvegarde locale est créée chaque jour. Active la sync iCloud Drive pour garder une copie dans le cloud automatiquement.")
+                        Text("Configure iCloud Drive pour ne jamais perdre tes données, même si tu supprimes l'app.")
                             .font(.caption)
+                            .foregroundStyle(.orange)
                     }
                 }
 
