@@ -6,9 +6,7 @@
   "headerURL": "https://raw.githubusercontent.com/Kyrinnx/GymTracker/main/AltStoreSource/header.png",
   "website": "https://github.com/Kyrinnx/GymTracker",
   "tintColor": "#FF6B35",
-  "featuredApps": [
-    "com.quentin.gymtracker"
-  ],
+  "featuredApps": ["com.quentin.gymtracker"],
   "apps": [
     {
       "name": "GymTracker",
@@ -27,14 +25,6 @@
           "localizedDescription": "Première version — musculation, nutrition, jeûne, HealthKit",
           "downloadURL": "https://github.com/Kyrinnx/GymTracker/releases/download/v1.0.0/GymTracker.ipa",
           "size": 2161806,
-          "minOSVersion": "17.0"
-        },
-        {
-          "version": "1.0.0",
-          "date": "2026-04-12",
-          "localizedDescription": "Première version publique.\n\n• Suivi de séances avec timer de repos\n• Templates de programmes (Upper/Lower)\n• Records & 1RM estimé (Epley)\n• Nutrition complète avec base d'aliments\n• Jeûne intermittent (16:8, 18:6, OMAD…)\n• Sauvegardes automatiques quotidiennes\n• 6 thèmes de couleur",
-          "downloadURL": "https://github.com/Kyrinnx/GymTracker/releases/download/v1.0.0/GymTracker.ipa",
-          "size": 5000000,
           "minOSVersion": "17.0"
         }
       ],
