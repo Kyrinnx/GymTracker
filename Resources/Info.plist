@@ -18,12 +18,6 @@
 	<string>1</string>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
-	<key>NSCameraUsageDescription</key>
-	<string>GymTracker utilise la caméra pour scanner les codes-barres de tes aliments.</string>
-	<key>NSHealthShareUsageDescription</key>
-	<string>GymTracker lit tes données Santé pour éviter les doublons.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>GymTracker envoie tes données de nutrition et de poids dans l'app Santé.</string>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>UILaunchScreen</key>

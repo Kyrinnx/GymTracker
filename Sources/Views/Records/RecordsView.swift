@@ -211,17 +211,11 @@ struct RecordsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
-    @AppStorage("healthKitEnabled") private var healthKitEnabled: Bool = false
-
     private func addWeight() {
         guard let kg = Double(weightInput.replacingOccurrences(of: ",", with: ".")), kg > 0 else { return }
         let bf = Double(bfInput.replacingOccurrences(of: ",", with: "."))
         let entry = WeightEntry(kg: kg, bodyFat: bf)
         context.insert(entry)
-
-        if healthKitEnabled {
-            HealthKitService.shared.saveWeight(kg: kg, bodyFat: bf, date: entry.date)
-        }
 
         weightInput = ""
         bfInput = ""

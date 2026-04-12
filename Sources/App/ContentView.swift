@@ -5,11 +5,10 @@ struct ContentView: View {
     @State private var selectedTab: Tab = .home
 
     enum Tab: String, CaseIterable {
-        case home, nutrition, records, history, settings
+        case home, records, history, settings
         var label: String {
             switch self {
             case .home: "Accueil"
-            case .nutrition: "Nutrition"
             case .records: "Records"
             case .history: "Historique"
             case .settings: "Réglages"
@@ -18,7 +17,6 @@ struct ContentView: View {
         var icon: String {
             switch self {
             case .home: "house.fill"
-            case .nutrition: "fork.knife"
             case .records: "trophy.fill"
             case .history: "clock.fill"
             case .settings: "gearshape.fill"
@@ -43,8 +41,6 @@ struct ContentView: View {
         switch tab {
         case .home:
             HomeView()
-        case .nutrition:
-            NutritionView()
         case .records:
             RecordsView()
         case .history:
