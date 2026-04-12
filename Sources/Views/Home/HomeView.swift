@@ -83,6 +83,7 @@ struct HomeView: View {
                     }
                     .buttonStyle(.plain)
                     .padding(.horizontal)
+                    .spotlightTag("free_session")
 
                     // Custom templates section — always visible
                     VStack(alignment: .leading, spacing: 12) {
@@ -104,6 +105,7 @@ struct HomeView: View {
                                 .fontWeight(.semibold)
                                 .foregroundStyle(theme.color.accent)
                             }
+                            .spotlightTag("ai_import")
                             if !customTemplates.isEmpty {
                                 NavigationLink {
                                     TemplateListView()
@@ -175,6 +177,7 @@ struct HomeView: View {
                         }
                         .padding(.horizontal)
                     }
+                    .spotlightTag("my_sessions")
 
                     // Bibliothèque link
                     NavigationLink {
@@ -493,14 +496,14 @@ struct HomeView: View {
             // Stats
             VStack(spacing: 10) {
                 HStack(spacing: 10) {
-                    statBox(value: lastWeight.map { String(format: "%.1f", $0.kg) } ?? "—", label: "KG")
-                    statBox(value: lastWeight?.bodyFat.map { String(format: "%.1f", $0) } ?? "—", label: "% BF")
+                    statBox(value: lastWeight.map { String(format: "%.1f", $0.kg) } ?? "—", label: "KG", tooltip: "Poids actuel")
+                    statBox(value: lastWeight?.bodyFat.map { String(format: "%.1f", $0) } ?? "—", label: "% BF", tooltip: "Taux de masse grasse")
                 }
                 HStack(spacing: 10) {
                     statBox(value: lastWeight?.leanMass.map { String(format: "%.1f", $0) } ?? "—",
-                            label: "MM", tooltip: "Masse maigre")
+                            label: "MM", tooltip: "Masse maigre (poids - gras)")
                     statBox(value: lastWeight?.bmr.map { "\(Int($0))" } ?? "—",
-                            label: "MB", tooltip: "Métabolisme basal")
+                            label: "MB", tooltip: "Métabolisme basal (kcal/jour)")
                 }
                 if !recentGroups.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -531,28 +534,7 @@ struct HomeView: View {
     }
 
     private func statBox(value: String, label: String, tooltip: String? = nil) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(value)
-                .font(.title3)
-                .fontWeight(.black)
-            HStack(spacing: 4) {
-                Text(label)
-                    .font(.caption2)
-                    .fontWeight(.bold)
-                    .tracking(1)
-                    .foregroundStyle(.secondary)
-                if tooltip != nil {
-                    Image(systemName: "info.circle")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .help(tooltip ?? "")
+        StatBoxView(value: value, label: label, tooltip: tooltip)
     }
 
     private func lastSessionCard(_ session: WorkoutSession) -> some View {
@@ -625,6 +607,50 @@ struct TemplateCard: View {
 }
 
 // MARK: - Custom Template Card
+// MARK: - Stat Box with Tooltip
+
+private struct StatBoxView: View {
+    let value: String
+    let label: String
+    let tooltip: String?
+    @State private var showTooltip = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(value)
+                .font(.title3)
+                .fontWeight(.black)
+            HStack(spacing: 4) {
+                Text(label)
+                    .font(.caption2)
+                    .fontWeight(.bold)
+                    .tracking(1)
+                    .foregroundStyle(.secondary)
+                if tooltip != nil {
+                    Image(systemName: "info.circle")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .onTapGesture {
+            if tooltip != nil {
+                showTooltip = true
+            }
+        }
+        .popover(isPresented: $showTooltip, arrowEdge: .top) {
+            Text(tooltip ?? "")
+                .font(.subheadline)
+                .padding(12)
+                .presentationCompactAdaptation(.popover)
+        }
+    }
+}
+
 struct CustomTemplateCard: View {
     @Environment(ThemeManager.self) private var theme
     let template: CustomTemplate

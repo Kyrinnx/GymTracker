@@ -3,7 +3,7 @@
     {
       "filename" : "body_back.png",
       "idiom" : "universal",
-      "scale" : "1x"
+      "scale" : "3x"
     }
   ],
   "info" : {
@@ -11,7 +11,6 @@
     "version" : 1
   },
   "properties" : {
-    "preserves-vector-representation" : false,
     "template-rendering-intent" : "original"
   }
 }
