@@ -12,6 +12,8 @@ struct HomeView: View {
     @AppStorage("userName") private var userName: String = ""
     @State private var activeSession: WorkoutSession?
     @State private var showTemplateList = false
+    @State private var newTemplate: CustomTemplate?
+    @State private var showAIImport = false
 
     private var weekSessions: [WorkoutSession] {
         let week = Calendar.current.date(byAdding: .day, value: -7, to: Date())!
@@ -81,16 +83,27 @@ struct HomeView: View {
                     .buttonStyle(.plain)
                     .padding(.horizontal)
 
-                    // Custom templates section
-                    if !customTemplates.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Text("MES SÉANCES")
-                                    .font(.caption)
-                                    .fontWeight(.bold)
-                                    .tracking(2.5)
-                                    .foregroundStyle(.secondary)
-                                Spacer()
+                    // Custom templates section — always visible
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("MES SÉANCES")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .tracking(2.5)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button {
+                                showAIImport = true
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "sparkles")
+                                    Text("Importer (IA)")
+                                }
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(theme.color.accent)
+                            }
+                            if !customTemplates.isEmpty {
                                 NavigationLink {
                                     TemplateListView()
                                 } label: {
@@ -100,18 +113,47 @@ struct HomeView: View {
                                         .foregroundStyle(theme.color.accent)
                                 }
                             }
-                            .padding(.horizontal)
-
-                            LazyVGrid(columns: [.init(), .init()], spacing: 12) {
-                                ForEach(customTemplates) { tpl in
-                                    CustomTemplateCard(template: tpl)
-                                        .onTapGesture {
-                                            startSession(fromCustom: tpl)
-                                        }
-                                }
-                            }
-                            .padding(.horizontal)
                         }
+                        .padding(.horizontal)
+
+                        LazyVGrid(columns: [.init(), .init()], spacing: 12) {
+                            ForEach(customTemplates) { tpl in
+                                CustomTemplateCard(template: tpl)
+                                    .onTapGesture {
+                                        startSession(fromCustom: tpl)
+                                    }
+                            }
+                            // "+" create card
+                            Button {
+                                let nextOrder = (customTemplates.map(\.order).max() ?? -1) + 1
+                                let tpl = CustomTemplate(name: "", subtitle: "", order: nextOrder)
+                                context.insert(tpl)
+                                newTemplate = tpl
+                            } label: {
+                                VStack(spacing: 8) {
+                                    Image(systemName: "plus")
+                                        .font(.title2)
+                                        .fontWeight(.bold)
+                                        .foregroundStyle(theme.color.accent)
+                                    if customTemplates.isEmpty {
+                                        Text("Créer un programme")
+                                            .font(.caption)
+                                            .fontWeight(.semibold)
+                                            .foregroundStyle(.secondary)
+                                            .multilineTextAlignment(.center)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, minHeight: 110)
+                                .background(theme.color.accent.opacity(0.08))
+                                .clipShape(RoundedRectangle(cornerRadius: 20))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .strokeBorder(theme.color.accent.opacity(0.3), style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal)
                     }
 
                     // Built-in Templates
@@ -159,6 +201,14 @@ struct HomeView: View {
         }
         .fullScreenCover(item: $activeSession) { session in
             SessionView(session: session)
+        }
+        .sheet(item: $newTemplate) { tpl in
+            NavigationStack {
+                TemplateEditorView(template: tpl)
+            }
+        }
+        .sheet(isPresented: $showAIImport) {
+            AIImportSheet()
         }
     }
 
@@ -546,5 +596,233 @@ struct CustomTemplateCard: View {
             RoundedRectangle(cornerRadius: 20)
                 .strokeBorder(.quaternary, lineWidth: 0.5)
         )
+    }
+}
+
+// MARK: - AI Import Sheet
+
+private struct AIImportSheet: View {
+    @Environment(ThemeManager.self) private var theme
+    @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var selectedTab = 0
+    @State private var userDescription = ""
+    @State private var jsonResponse = ""
+    @State private var resultMessage: String?
+    @State private var isError = false
+    @State private var copied = false
+
+    private var promptText: String {
+        let description = userDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        let placeholder = description.isEmpty ? "[décris ton programme ici]" : description
+        return """
+        Crée-moi un programme de musculation : \(placeholder).
+
+        Réponds UNIQUEMENT avec du JSON valide, sans texte avant ni après, dans ce format exact :
+        {
+          "name": "Nom du programme",
+          "subtitle": "Description courte",
+          "exercises": [
+            {"name": "Nom exercice", "muscle": "chest", "sets": 4, "reps": 10, "rest": 90}
+          ]
+        }
+
+        Valeurs possibles pour "muscle" : chest, back, shoulders, arms, legs, core.
+        "rest" est en secondes (30, 45, 60, 90, 120, 150, 180).
+        """
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                Picker("Étape", selection: $selectedTab) {
+                    Text("1. Copier le prompt").tag(0)
+                    Text("2. Coller la réponse").tag(1)
+                }
+                .pickerStyle(.segmented)
+                .padding()
+
+                if selectedTab == 0 {
+                    promptStep
+                } else {
+                    responseStep
+                }
+            }
+            .navigationTitle("Importer via IA")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fermer") { dismiss() }
+                }
+            }
+            .alert(isError ? "Erreur" : "Importé", isPresented: Binding(
+                get: { resultMessage != nil },
+                set: { if !$0 { resultMessage = nil } }
+            )) {
+                Button("OK") {
+                    if !isError {
+                        dismiss()
+                    }
+                }
+            } message: {
+                Text(resultMessage ?? "")
+            }
+        }
+    }
+
+    // MARK: - Step 1: Prompt
+
+    private var promptStep: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Décris le programme souhaité :")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    TextField("Ex : programme push/pull/legs 4 jours", text: $userDescription)
+                        .textFieldStyle(.roundedBorder)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Prompt à copier :")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Text(promptText)
+                        .font(.caption)
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+
+                Button {
+                    UIPasteboard.general.string = promptText
+                    copied = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        copied = false
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                        Text(copied ? "Copié !" : "Copier le prompt")
+                            .fontWeight(.bold)
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(theme.color.gradient)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+                .buttonStyle(.plain)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("Comment faire", systemImage: "questionmark.circle")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.secondary)
+                    Text("1. Copie le prompt ci-dessus\n2. Colle-le dans ChatGPT ou Claude\n3. Copie la réponse JSON\n4. Reviens ici, onglet \"2. Coller la réponse\"")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(12)
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .padding()
+        }
+    }
+
+    // MARK: - Step 2: Response
+
+    private var responseStep: some View {
+        VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Colle la réponse JSON de l'IA :")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                TextEditor(text: $jsonResponse)
+                    .font(.caption.monospaced())
+                    .frame(maxHeight: .infinity)
+                    .padding(8)
+                    .background(Color(.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+
+            Button {
+                importJSON()
+            } label: {
+                HStack {
+                    Image(systemName: "square.and.arrow.down")
+                    Text("Importer")
+                        .fontWeight(.bold)
+                }
+                .font(.subheadline)
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(jsonResponse.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? Color.gray
+                    : theme.color.accent)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+            }
+            .buttonStyle(.plain)
+            .disabled(jsonResponse.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+        .padding()
+    }
+
+    // MARK: - JSON Parsing
+
+    private func importJSON() {
+        let trimmed = jsonResponse.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        guard let data = trimmed.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            isError = true
+            resultMessage = "JSON invalide. Vérifie que tu as bien copié toute la réponse de l'IA, sans texte avant ni après."
+            return
+        }
+
+        let name = json["name"] as? String ?? "Programme importé"
+        let subtitle = json["subtitle"] as? String ?? ""
+
+        guard let exercisesJSON = json["exercises"] as? [[String: Any]], !exercisesJSON.isEmpty else {
+            isError = true
+            resultMessage = "Aucun exercice trouvé dans le JSON. Le champ \"exercises\" est manquant ou vide."
+            return
+        }
+
+        let validMuscles = Set(MuscleGroup.allCases.map(\.rawValue))
+        let nextTemplateOrder = (try? context.fetchCount(FetchDescriptor<CustomTemplate>())) ?? 0
+
+        let template = CustomTemplate(name: name, subtitle: subtitle, order: nextTemplateOrder)
+        context.insert(template)
+
+        for (index, exJSON) in exercisesJSON.enumerated() {
+            let exName = exJSON["name"] as? String ?? "Exercice \(index + 1)"
+            let muscleRaw = exJSON["muscle"] as? String ?? "chest"
+            let muscleGroup = validMuscles.contains(muscleRaw) ? MuscleGroup(rawValue: muscleRaw)! : .chest
+            let sets = exJSON["sets"] as? Int ?? 3
+            let reps = exJSON["reps"] as? Int ?? 10
+            let rest = exJSON["rest"] as? Int ?? 90
+
+            let exercise = CustomTemplateExercise(
+                name: exName,
+                muscleGroup: muscleGroup,
+                scheme: "\(sets)x\(reps)",
+                restSeconds: rest,
+                defaultSets: sets,
+                defaultReps: reps,
+                order: index
+            )
+            if template.exercises == nil { template.exercises = [] }
+            template.exercises?.append(exercise)
+        }
+
+        isError = false
+        resultMessage = "\"\(name)\" importé avec \(exercisesJSON.count) exercices !"
     }
 }

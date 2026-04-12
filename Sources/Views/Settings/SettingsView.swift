@@ -261,7 +261,7 @@ struct SettingsView: View {
                         do {
                             _ = try AutoBackupService.backupNow(context: context)
                             refreshLastBackupDisplay()
-                            importMessage = "Sauvegarde créée ✅"
+                            importMessage = AutoBackupService.isCloudFolderConfigured ? "Sauvegardé en local + iCloud Drive ✅" : "Sauvegardé en local ✅\n\nConfigure iCloud Drive pour sécuriser tes données."
                         } catch {
                             importMessage = "Échec de la sauvegarde : \(error.localizedDescription)"
                         }

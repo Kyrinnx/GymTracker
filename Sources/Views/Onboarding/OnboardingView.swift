@@ -15,6 +15,8 @@ struct OnboardingView: View {
     @State private var showFilePicker = false
     @State private var restoreMessage: String?
     @State private var isRestoring = false
+    @State private var showFolderPicker = false
+    @State private var cloudFolderConfigured = AutoBackupService.isCloudFolderConfigured
 
     var body: some View {
         ZStack {
@@ -25,7 +27,7 @@ struct OnboardingView: View {
             VStack(spacing: 0) {
                 // Progress dots
                 HStack(spacing: 8) {
-                    ForEach(0..<4) { i in
+                    ForEach(0..<5) { i in
                         Circle()
                             .fill(i == step ? theme.color.accent : Color.secondary.opacity(0.3))
                             .frame(width: 8, height: 8)
@@ -40,7 +42,8 @@ struct OnboardingView: View {
                     case 0: welcomeStep
                     case 1: restoreStep
                     case 2: nameStep
-                    default: bodyStep
+                    case 3: bodyStep
+                    default: iCloudStep
                     }
                 }
                 .transition(.asymmetric(
@@ -81,14 +84,55 @@ struct OnboardingView: View {
                     }
                     .padding(.horizontal, 32)
                     .padding(.bottom, 40)
+                } else if step == 4 {
+                    // iCloud step: show folder picker button, then Commencer when configured
+                    VStack(spacing: 12) {
+                        if !cloudFolderConfigured {
+                            Button {
+                                showFolderPicker = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "icloud.and.arrow.up.fill")
+                                    Text("Configurer iCloud Drive")
+                                        .fontWeight(.bold)
+                                }
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(theme.color.gradient)
+                                .clipShape(RoundedRectangle(cornerRadius: 18))
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        if cloudFolderConfigured {
+                            Button {
+                                next()
+                            } label: {
+                                HStack {
+                                    Text("Commencer")
+                                        .fontWeight(.bold)
+                                    Image(systemName: "checkmark")
+                                }
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(theme.color.gradient)
+                                .clipShape(RoundedRectangle(cornerRadius: 18))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 40)
                 } else {
                     Button {
                         next()
                     } label: {
                         HStack {
-                            Text(step == 3 ? "Commencer" : "Suivant")
+                            Text("Suivant")
                                 .fontWeight(.bold)
-                            Image(systemName: step == 3 ? "checkmark" : "arrow.right")
+                            Image(systemName: "arrow.right")
                         }
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
@@ -119,6 +163,14 @@ struct OnboardingView: View {
             allowsMultipleSelection: false
         ) { result in
             handleRestore(result)
+        }
+        .sheet(isPresented: $showFolderPicker) {
+            FolderPickerView { url in
+                AutoBackupService.setCloudFolder(url)
+                withAnimation(.spring) {
+                    cloudFolderConfigured = true
+                }
+            }
         }
         .alert("Restauration", isPresented: Binding(
             get: { restoreMessage != nil },
@@ -264,18 +316,54 @@ struct OnboardingView: View {
         }
     }
 
+    private var iCloudStep: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "icloud.fill")
+                .font(.system(size: 70))
+                .foregroundStyle(theme.color.accent)
+
+            VStack(spacing: 12) {
+                Text("Configure ta sauvegarde")
+                    .font(.title2.bold())
+                    .multilineTextAlignment(.center)
+
+                Text("Choisis un dossier iCloud Drive pour sauvegarder tes données automatiquement. Tu ne perdras rien, même si tu supprimes l'app.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 16)
+            }
+
+            if cloudFolderConfigured {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.green)
+                    Text("iCloud Drive configuré")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.green)
+                }
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .padding(.horizontal, 32)
+    }
+
     // MARK: - Logic
 
     private func next() {
-        if step < 3 {
+        if step < 4 {
+            // Save weight when leaving step 3 (body measurements)
+            if step == 3 {
+                if let kg = Double(weightInput.replacingOccurrences(of: ",", with: ".")), kg > 0 {
+                    let bf = Double(bfInput.replacingOccurrences(of: ",", with: "."))
+                    context.insert(WeightEntry(kg: kg, bodyFat: bf))
+                }
+            }
             withAnimation(.spring) { step += 1 }
             return
         }
-        // Final step: save weight if provided, mark complete
-        if let kg = Double(weightInput.replacingOccurrences(of: ",", with: ".")), kg > 0 {
-            let bf = Double(bfInput.replacingOccurrences(of: ",", with: "."))
-            context.insert(WeightEntry(kg: kg, bodyFat: bf))
-        }
+        // Final step (4): mark onboarding complete
         withAnimation(.spring) { onboardingCompleted = true }
     }
 
