@@ -1,0 +1,559 @@
+import SwiftUI
+import SwiftData
+
+struct SessionView: View {
+    @Environment(ThemeManager.self) private var theme
+    @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
+
+    @Bindable var session: WorkoutSession
+    @Query private var exerciseInfos: [ExerciseInfo]
+
+    @State private var elapsedSeconds: Int = 0
+    @State private var timer: Timer?
+
+    // Rest timer
+    @State private var restDuration: Int = 90
+    @State private var activeRestDuration: Int = 90
+    @State private var restRemaining: Int = 0
+    @State private var restTimer: Timer?
+    @State private var showRestOverlay = false
+
+    // Pickers / Sheets
+    @State private var showExercisePicker = false
+    @State private var showRestConfig = false
+    @State private var showCancelConfirm = false
+    @State private var showFinishConfirm = false
+
+    private var elapsedMinutes: Int { elapsedSeconds / 60 }
+    private var estimatedCalories: Int { elapsedMinutes * 7 }
+
+    private var sortedExercises: [ExerciseEntry] {
+        session.exercisesArray.sorted { $0.order < $1.order }
+    }
+
+    var body: some View {
+        ZStack {
+            mainContent
+            if showRestOverlay {
+                restOverlay
+            }
+        }
+        .onAppear(perform: startElapsedTimer)
+        .onDisappear(perform: stopAllTimers)
+        .sheet(isPresented: $showExercisePicker) {
+            ExercisePickerView { name, group in
+                addExercise(name: name, group: group)
+            }
+        }
+        .confirmationDialog("Annuler la séance ?", isPresented: $showCancelConfirm, titleVisibility: .visible) {
+            Button("Annuler la séance", role: .destructive) {
+                cancelSession()
+            }
+            Button("Continuer", role: .cancel) {}
+        } message: {
+            Text("Toute la progression sera perdue.")
+        }
+        .confirmationDialog("Terminer la séance ?", isPresented: $showFinishConfirm, titleVisibility: .visible) {
+            Button("Terminer") {
+                finishSession()
+            }
+            Button("Continuer", role: .cancel) {}
+        } message: {
+            Text("Les séries non complétées seront ignorées.")
+        }
+    }
+
+    // MARK: - Main Content
+
+    private var mainContent: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+                    headerCard
+                    exercisesList
+                    addExerciseButton
+                    Spacer(minLength: 40)
+                }
+                .padding(.bottom, 20)
+            }
+            .navigationTitle(session.templateName)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annuler") {
+                        showCancelConfirm = true
+                    }
+                    .foregroundStyle(.red)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Terminer") {
+                        showFinishConfirm = true
+                    }
+                    .fontWeight(.bold)
+                    .foregroundStyle(theme.color.accent)
+                }
+            }
+        }
+    }
+
+    // MARK: - Header Card
+
+    private var headerCard: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 20) {
+                VStack(spacing: 2) {
+                    Text(formattedElapsed)
+                        .font(.title2)
+                        .fontWeight(.black)
+                        .monospacedDigit()
+                    Text("DURÉE")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .tracking(1)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                VStack(spacing: 2) {
+                    Text("\(estimatedCalories)")
+                        .font(.title2)
+                        .fontWeight(.black)
+                        .foregroundStyle(theme.color.accent)
+                    Text("KCAL")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .tracking(1)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                VStack(spacing: 2) {
+                    Text("\(session.totalSets)")
+                        .font(.title2)
+                        .fontWeight(.black)
+                    Text("SÉRIES")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .tracking(1)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            // Rest duration config
+            HStack(spacing: 8) {
+                Image(systemName: "timer")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Repos :")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                ForEach([60, 90, 120, 180], id: \.self) { duration in
+                    Button {
+                        restDuration = duration
+                    } label: {
+                        Text("\(duration)s")
+                            .font(.caption)
+                            .fontWeight(restDuration == duration ? .bold : .regular)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(restDuration == duration ? theme.color.accent.opacity(0.2) : Color.clear)
+                            .foregroundStyle(restDuration == duration ? theme.color.accent : .secondary)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(18)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .padding(.horizontal)
+    }
+
+    // MARK: - Exercises List
+
+    private var exercisesList: some View {
+        ForEach(sortedExercises) { exercise in
+            exerciseCard(exercise)
+                .padding(.horizontal)
+        }
+    }
+
+    private func infoFor(_ exercise: ExerciseEntry) -> ExerciseInfo? {
+        exerciseInfos.first { $0.name == exercise.name }
+    }
+
+    private func toggleFavorite(_ exercise: ExerciseEntry) {
+        if let info = infoFor(exercise) {
+            info.isFavorite.toggle()
+        } else {
+            let info = ExerciseInfo(name: exercise.name, muscleGroup: exercise.group, isFavorite: true)
+            context.insert(info)
+        }
+    }
+
+    private func exerciseCard(_ exercise: ExerciseEntry) -> some View {
+        let isFav = infoFor(exercise)?.isFavorite ?? false
+        return VStack(alignment: .leading, spacing: 12) {
+            // Exercise header
+            HStack {
+                Button { toggleFavorite(exercise) } label: {
+                    Image(systemName: isFav ? "star.fill" : "star")
+                        .font(.title3)
+                        .foregroundStyle(isFav ? Color.yellow : Color.gray.opacity(0.4))
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(exercise.name)
+                        .font(.headline)
+                        .fontWeight(.bold)
+                    Text(exercise.group.label)
+                        .font(.caption)
+                        .foregroundStyle(theme.color.accent)
+                }
+                Spacer()
+                Menu {
+                    Button(role: .destructive) {
+                        deleteExercise(exercise)
+                    } label: {
+                        Label("Supprimer l'exercice", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 36, height: 36)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                if exercise.restSeconds > 0 && exercise.restSeconds != 90 {
+                    Label("\(exercise.restSeconds)s", systemImage: "timer")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Capsule())
+                }
+                if !exercise.scheme.isEmpty {
+                    Text(exercise.scheme)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Capsule())
+                }
+            }
+
+            // Sets header
+            HStack(spacing: 0) {
+                Text("SÉRIE")
+                    .frame(width: 44, alignment: .leading)
+                Text("KG")
+                    .frame(maxWidth: .infinity)
+                Text("REPS")
+                    .frame(maxWidth: .infinity)
+                Text("")
+                    .frame(width: 44)
+            }
+            .font(.caption2)
+            .fontWeight(.bold)
+            .tracking(1)
+            .foregroundStyle(.tertiary)
+
+            // Sets rows
+            let sortedSets = exercise.setsArray.sorted { $0.order < $1.order }
+            ForEach(sortedSets) { set in
+                setRow(set: set, exercise: exercise)
+            }
+
+            // Add set button
+            Button {
+                addSet(to: exercise)
+            } label: {
+                HStack {
+                    Image(systemName: "plus")
+                    Text("Ajouter une série")
+                }
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(theme.color.accent)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(theme.color.accent.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(16)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .strokeBorder(.quaternary, lineWidth: 0.5)
+        )
+    }
+
+    private func setRow(set: WorkoutSet, exercise: ExerciseEntry) -> some View {
+        HStack(spacing: 0) {
+            Text("\(set.order + 1)")
+                .font(.subheadline)
+                .fontWeight(.bold)
+                .foregroundStyle(.secondary)
+                .frame(width: 44, alignment: .leading)
+
+            kgField(set: set)
+                .frame(maxWidth: .infinity)
+
+            repsField(set: set)
+                .frame(maxWidth: .infinity)
+
+            Button {
+                toggleDone(set, exercise: exercise)
+            } label: {
+                Image(systemName: set.done ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(set.done ? theme.color.accent : Color.secondary.opacity(0.4))
+            }
+            .buttonStyle(.plain)
+            .frame(width: 44)
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func kgField(set: WorkoutSet) -> some View {
+        HStack(spacing: 4) {
+            TextField("0", value: Binding(
+                get: { set.kg },
+                set: { set.kg = $0 }
+            ), format: .number)
+            .keyboardType(.decimalPad)
+            .multilineTextAlignment(.center)
+            .font(.subheadline)
+            .fontWeight(.semibold)
+            .frame(width: 60)
+            .padding(.vertical, 6)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
+    private func repsField(set: WorkoutSet) -> some View {
+        HStack(spacing: 4) {
+            TextField("0", value: Binding(
+                get: { set.reps },
+                set: { set.reps = $0 }
+            ), format: .number)
+            .keyboardType(.numberPad)
+            .multilineTextAlignment(.center)
+            .font(.subheadline)
+            .fontWeight(.semibold)
+            .frame(width: 60)
+            .padding(.vertical, 6)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
+    // MARK: - Add Exercise Button
+
+    private var addExerciseButton: some View {
+        Button {
+            showExercisePicker = true
+        } label: {
+            HStack {
+                Image(systemName: "plus.circle.fill")
+                Text("Ajouter un exercice")
+            }
+            .font(.subheadline)
+            .fontWeight(.bold)
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(theme.color.gradient)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal)
+    }
+
+    // MARK: - Rest Overlay
+
+    private var restOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+                .onTapGesture { dismissRest() }
+
+            VStack(spacing: 20) {
+                Text("REPOS")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .tracking(2)
+                    .foregroundStyle(.secondary)
+
+                ZStack {
+                    Circle()
+                        .stroke(.quaternary, lineWidth: 8)
+                        .frame(width: 160, height: 160)
+                    Circle()
+                        .trim(from: 0, to: restProgress)
+                        .stroke(theme.color.accent, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                        .frame(width: 160, height: 160)
+                        .rotationEffect(.degrees(-90))
+                        .animation(.linear(duration: 1), value: restRemaining)
+                    VStack(spacing: 4) {
+                        Text(formattedRest)
+                            .font(.system(size: 40, weight: .black, design: .rounded))
+                            .monospacedDigit()
+                        Text("/ \(activeRestDuration)s")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Button {
+                    dismissRest()
+                } label: {
+                    Text("Passer")
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 12)
+                        .background(theme.color.gradient)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(32)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 28))
+        }
+    }
+
+    // MARK: - Computed
+
+    private var formattedElapsed: String {
+        let m = elapsedSeconds / 60
+        let s = elapsedSeconds % 60
+        return String(format: "%d:%02d", m, s)
+    }
+
+    private var formattedRest: String {
+        let m = restRemaining / 60
+        let s = restRemaining % 60
+        return String(format: "%d:%02d", m, s)
+    }
+
+    private var restProgress: CGFloat {
+        guard activeRestDuration > 0 else { return 0 }
+        return CGFloat(restRemaining) / CGFloat(activeRestDuration)
+    }
+
+    // MARK: - Actions
+
+    private func startElapsedTimer() {
+        updateElapsed()
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            updateElapsed()
+        }
+    }
+
+    private func updateElapsed() {
+        elapsedSeconds = Int(Date().timeIntervalSince(session.started))
+    }
+
+    private func stopAllTimers() {
+        timer?.invalidate()
+        timer = nil
+        restTimer?.invalidate()
+        restTimer = nil
+    }
+
+    private func toggleDone(_ set: WorkoutSet, exercise: ExerciseEntry) {
+        set.done.toggle()
+        if set.done {
+            let duration = exercise.restSeconds > 0 ? exercise.restSeconds : restDuration
+            startRestTimer(duration: duration, exerciseName: exercise.name)
+        }
+    }
+
+    private func startRestTimer(duration: Int? = nil, exerciseName: String = "") {
+        restTimer?.invalidate()
+        activeRestDuration = duration ?? restDuration
+        restRemaining = activeRestDuration
+        showRestOverlay = true
+        restTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            if restRemaining > 0 {
+                restRemaining -= 1
+            } else {
+                dismissRest()
+            }
+        }
+    }
+
+    private func dismissRest() {
+        restTimer?.invalidate()
+        restTimer = nil
+        showRestOverlay = false
+    }
+
+    private func addSet(to exercise: ExerciseEntry) {
+        let nextOrder = (exercise.setsArray.map(\.order).max() ?? -1) + 1
+        let newSet = WorkoutSet(kg: 0, reps: 0, done: false, order: nextOrder)
+        if exercise.sets == nil { exercise.sets = [] }
+        exercise.sets?.append(newSet)
+    }
+
+    private func deleteExercise(_ exercise: ExerciseEntry) {
+        if let idx = session.exercises?.firstIndex(where: { $0.persistentModelID == exercise.persistentModelID }) {
+            session.exercises?.remove(at: idx)
+        }
+        context.delete(exercise)
+        // Re-pack orders
+        for (i, ex) in session.exercisesArray.sorted(by: { $0.order < $1.order }).enumerated() {
+            ex.order = i
+        }
+    }
+
+    private func addExercise(name: String, group: MuscleGroup) {
+        let nextOrder = (session.exercisesArray.map(\.order).max() ?? -1) + 1
+        let entry = ExerciseEntry(name: name, muscleGroup: group, scheme: "", order: nextOrder)
+        // Add 3 default empty sets
+        for i in 0..<3 {
+            if entry.sets == nil { entry.sets = [] }
+            entry.sets?.append(WorkoutSet(kg: 0, reps: 0, done: false, order: i))
+        }
+        if session.exercises == nil { session.exercises = [] }
+        session.exercises?.append(entry)
+    }
+
+    private func finishSession() {
+        session.finished = Date()
+        session.caloriesBurned = estimatedCalories
+
+        // Auto-add new exercises to database + update PRs
+        for exercise in session.exercisesArray {
+            let bestKg = exercise.setsArray.filter { $0.done && $0.kg > 0 }.map(\.kg).max() ?? 0
+            if let info = infoFor(exercise) {
+                if bestKg > info.personalRecord { info.personalRecord = bestKg }
+            } else {
+                let info = ExerciseInfo(name: exercise.name, muscleGroup: exercise.group, personalRecord: bestKg)
+                context.insert(info)
+            }
+        }
+
+        stopAllTimers()
+        dismiss()
+    }
+
+    private func cancelSession() {
+        stopAllTimers()
+        context.delete(session)
+        dismiss()
+    }
+}

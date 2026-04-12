@@ -1,0 +1,38 @@
+{
+  "name": "GymTracker — Quentin",
+  "subtitle": "Mon tracker de musculation perso",
+  "description": "Source AltStore privée pour la dernière version de GymTracker.",
+  "iconURL": "https://raw.githubusercontent.com/Kyrinnx/GymTracker/main/AltStoreSource/icon.png",
+  "headerURL": "https://raw.githubusercontent.com/Kyrinnx/GymTracker/main/AltStoreSource/header.png",
+  "website": "https://github.com/Kyrinnx/GymTracker",
+  "tintColor": "#FF6B35",
+  "featuredApps": ["com.quentin.gymtracker"],
+  "apps": [
+    {
+      "name": "GymTracker",
+      "bundleIdentifier": "com.quentin.gymtracker",
+      "developerName": "Quentin",
+      "subtitle": "Musculation, nutrition, jeûne intermittent",
+      "localizedDescription": "Suis tes séances de musculation, ta nutrition, ton jeûne intermittent et ta progression. Tout en local, données 100% privées.",
+      "iconURL": "https://raw.githubusercontent.com/Kyrinnx/GymTracker/main/AltStoreSource/icon.png",
+      "tintColor": "#FF6B35",
+      "category": "lifestyle",
+      "screenshotURLs": [],
+      "versions": [
+        {
+          "version": "1.0.0",
+          "date": "2026-04-12",
+          "localizedDescription": "Première version publique.\n\n• Suivi de séances avec timer de repos\n• Templates de programmes (Upper/Lower)\n• Records & 1RM estimé (Epley)\n• Nutrition complète avec base d'aliments\n• Jeûne intermittent (16:8, 18:6, OMAD…)\n• Sauvegardes automatiques quotidiennes\n• 6 thèmes de couleur",
+          "downloadURL": "https://github.com/Kyrinnx/GymTracker/releases/download/v1.0.0/GymTracker.ipa",
+          "size": 5000000,
+          "minOSVersion": "17.0"
+        }
+      ],
+      "appPermissions": {
+        "entitlements": [],
+        "privacy": []
+      }
+    }
+  ],
+  "news": []
+}
