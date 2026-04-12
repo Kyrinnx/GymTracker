@@ -110,7 +110,7 @@ struct SettingsView: View {
                                     await MainActor.run {
                                         healthKitEnabled = ok
                                         if !ok {
-                                            healthKitError = "L'autorisation a échoué. Va dans Réglages iOS → Santé → Accès données → GymTracker pour autoriser manuellement."
+                                            healthKitError = "L'autorisation a échoué.\n\n1. Va dans Réglages iOS → Santé → Accès données → GymTracker et autorise tout.\n2. Si GymTracker n'apparaît pas, l'entitlement HealthKit n'est peut-être pas supporté par AltStore sur ta version iOS."
                                         }
                                     }
                                 }
@@ -327,7 +327,7 @@ struct SettingsView: View {
                     HStack {
                         Text("Version")
                         Spacer()
-                        Text("1.0.0").foregroundStyle(.secondary)
+                        Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—").foregroundStyle(.secondary)
                     }
                     HStack {
                         Text("Fait avec")
@@ -340,6 +340,13 @@ struct SettingsView: View {
             .task {
                 await notifService.refreshAuthorizationStatus()
                 refreshLastBackupDisplay()
+                // Sync HealthKit toggle with actual iOS authorization status
+                if healthKitEnabled {
+                    HealthKitService.shared.refreshAuthorization()
+                    if !HealthKitService.shared.isAuthorized {
+                        healthKitEnabled = false
+                    }
+                }
             }
             .sheet(isPresented: $showBackupsList) {
                 BackupsListView()

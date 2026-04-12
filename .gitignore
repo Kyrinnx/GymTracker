@@ -5,12 +5,15 @@ DerivedData/
 *.xcodeproj/project.xcworkspace/xcuserdata/
 *.xcworkspace/xcuserdata/
 
+# Claude / dev memos (local only)
+CLAUDE.md
+MEMO.md
+
 # macOS
 .DS_Store
 **/.DS_Store
 
 # Backups & temp
-Sauvegarde/
 *.ipa
 
 # Secrets
