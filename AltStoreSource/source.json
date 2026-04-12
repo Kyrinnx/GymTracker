@@ -22,6 +22,14 @@
       "screenshotURLs": [],
       "versions": [
         {
+          "version": "1.6.0",
+          "date": "2026-04-12",
+          "localizedDescription": "Import IA multi-séances, bibliothèque de programmes",
+          "downloadURL": "https://github.com/Kyrinnx/GymTracker/releases/download/v1.6.0/GymTracker.ipa",
+          "size": 2380188,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "1.5.0",
           "date": "2026-04-12",
           "localizedDescription": "Bibliothèque de 14 programmes, duplication, sauvegarde de séance",
