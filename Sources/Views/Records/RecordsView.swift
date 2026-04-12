@@ -9,11 +9,16 @@ struct RecordsView: View {
     @Query private var exerciseInfos: [ExerciseInfo]
     @Query(sort: \WeightEntry.date, order: .reverse) private var weights: [WeightEntry]
 
+    @AppStorage("userGoal") private var userGoalRaw: String = ""
+    @AppStorage("targetWeight") private var targetWeight: Double = 0
+    @AppStorage("weeklyGoal") private var weeklyGoal: Int = 4
+
     @State private var selectedExerciseName: String?
     @State private var weightInput: String = ""
     @State private var bfInput: String = ""
 
     private var lastWeight: WeightEntry? { weights.first }
+    private var userGoal: FitnessGoal? { FitnessGoal(rawValue: userGoalRaw) }
 
     fileprivate struct PRRow: Identifiable {
         var id: String { name }
@@ -69,6 +74,10 @@ struct RecordsView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     summaryCards
+                    if userGoal != nil {
+                        goalTrackingSection
+                    }
+                    weeklyProgressSection
                     weightSection
                     if weights.count >= 2 {
                         weightChart
@@ -138,6 +147,263 @@ struct RecordsView: View {
         .padding(14)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 18))
+    }
+
+    // MARK: - Goal Tracking
+
+    private var goalTrackingSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                if let goal = userGoal {
+                    Image(systemName: goal.icon)
+                        .font(.caption)
+                        .foregroundStyle(theme.color.accent)
+                }
+                Text("OBJECTIF")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .tracking(2)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let goal = userGoal, let currentKg = lastWeight?.kg {
+                VStack(spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(goal.label)
+                                .font(.headline.bold())
+                            if goal.hasWeightTarget && targetWeight > 0 {
+                                Text("Objectif : \(String(format: "%.1f", targetWeight)) kg")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(String(format: "%.1f", currentKg))
+                                .font(.title3.bold())
+                                .foregroundStyle(theme.color.accent)
+                            Text("kg actuels")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    // Progress bar for cut/bulk
+                    if goal.hasWeightTarget && targetWeight > 0 {
+                        goalProgressBar(goal: goal, current: currentKg)
+                    }
+
+                    // Smart feedback
+                    goalFeedback(goal: goal, current: currentKg)
+                }
+            } else if userGoal != nil && lastWeight == nil {
+                Text("Ajoute ton poids pour suivre ta progression")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(18)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .padding(.horizontal)
+    }
+
+    @ViewBuilder
+    private func goalProgressBar(goal: FitnessGoal, current: Double) -> some View {
+        let startKg = weights.last?.kg ?? current
+        let totalDiff = abs(targetWeight - startKg)
+        let currentDiff = abs(current - startKg)
+        let progress = totalDiff > 0 ? min(1, currentDiff / totalDiff) : 0
+        let isCorrectDirection = (goal == .cut && current <= startKg) || (goal == .bulk && current >= startKg)
+        let effectiveProgress = isCorrectDirection ? progress : 0
+
+        VStack(spacing: 6) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.secondary.opacity(0.15))
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(theme.color.accent.gradient)
+                        .frame(width: geo.size.width * effectiveProgress)
+                }
+            }
+            .frame(height: 10)
+
+            HStack {
+                Text(String(format: "%.1f kg", startKg))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(Int(effectiveProgress * 100))%")
+                    .font(.caption2.bold())
+                    .foregroundStyle(theme.color.accent)
+                Spacer()
+                Text(String(format: "%.1f kg", targetWeight))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+
+        if let weeks = goal.estimatedWeeks(from: current, to: targetWeight) {
+            let months = weeks / 4
+            let remWeeks = weeks % 4
+            let eta: String = months > 0
+                ? "\(months) mois\(remWeeks > 0 ? " et \(remWeeks) sem." : "")"
+                : "\(weeks) semaines"
+            Text("Objectif atteint dans ~\(eta)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+        }
+    }
+
+    @ViewBuilder
+    private func goalFeedback(goal: FitnessGoal, current: Double) -> some View {
+        let recentWeights = weights.prefix(4) // Last ~month
+        if recentWeights.count >= 2 {
+            let newest = recentWeights.first!.kg
+            let oldest = recentWeights.last!.kg
+            let weekCount = max(1, Calendar.current.dateComponents([.weekOfYear], from: recentWeights.last!.date, to: recentWeights.first!.date).weekOfYear ?? 1)
+            let actualWeeklyChange = (newest - oldest) / Double(weekCount)
+            let expectedWeeklyChange = goal.weeklyRate
+
+            let (icon, message, color) = feedbackContent(
+                goal: goal,
+                actual: actualWeeklyChange,
+                expected: expectedWeeklyChange,
+                current: current
+            )
+
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundStyle(color)
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(color.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    private func feedbackContent(goal: FitnessGoal, actual: Double, expected: Double, current: Double) -> (String, String, Color) {
+        switch goal {
+        case .cut:
+            if actual <= expected * 1.5 {
+                // Losing too fast
+                return ("exclamationmark.triangle.fill",
+                        "Tu perds vite (\(String(format: "%.1f", abs(actual))) kg/sem). Augmente un peu tes calories pour préserver ton muscle.",
+                        .orange)
+            } else if actual <= expected * 0.5 {
+                // Good pace
+                return ("checkmark.seal.fill",
+                        "Parfait, tu es sur la bonne voie ! Continue comme ça.",
+                        .green)
+            } else if actual < 0 {
+                // Losing but slow
+                return ("tortoise.fill",
+                        "Tu perds du poids mais lentement. Réduis légèrement tes calories ou ajoute du cardio.",
+                        .yellow)
+            } else {
+                // Gaining weight on a cut
+                return ("arrow.up.circle.fill",
+                        "Tu prends du poids au lieu d'en perdre. Vérifie ton déficit calorique.",
+                        .red)
+            }
+
+        case .bulk:
+            if actual >= expected * 2 {
+                // Gaining too fast
+                return ("exclamationmark.triangle.fill",
+                        "Tu prends vite (\(String(format: "%.1f", actual)) kg/sem). Réduis un peu pour limiter le gras.",
+                        .orange)
+            } else if actual >= expected * 0.5 {
+                // Good pace
+                return ("checkmark.seal.fill",
+                        "Bonne progression ! Tu es dans le bon rythme.",
+                        .green)
+            } else if actual > 0 {
+                // Gaining but slow
+                return ("tortoise.fill",
+                        "Tu progresses mais lentement. Augmente tes calories de 200-300 kcal.",
+                        .yellow)
+            } else {
+                // Losing weight on a bulk
+                return ("arrow.down.circle.fill",
+                        "Tu perds du poids au lieu d'en prendre. Mange plus !",
+                        .red)
+            }
+
+        case .maintain:
+            if abs(actual) < 0.15 {
+                return ("checkmark.seal.fill", "Poids stable, c'est parfait !", .green)
+            } else if actual > 0 {
+                return ("arrow.up.circle.fill", "Tu prends un peu. Attention à tes calories.", .orange)
+            } else {
+                return ("arrow.down.circle.fill", "Tu perds un peu. Mange légèrement plus.", .orange)
+            }
+
+        case .strength:
+            if actual >= 0 {
+                return ("checkmark.seal.fill", "Poids stable ou en hausse, bon pour la force !", .green)
+            } else {
+                return ("info.circle.fill", "Tu perds du poids, ça peut impacter tes perfs. Mange suffisamment.", .yellow)
+            }
+
+        case .recomp:
+            if abs(actual) < 0.3 {
+                return ("checkmark.seal.fill", "Poids stable — si tu progresses en force, la recomp fonctionne !", .green)
+            } else if actual < -0.5 {
+                return ("arrow.down.circle.fill", "Tu perds trop vite pour une recomp. Augmente un peu tes calories.", .orange)
+            } else {
+                return ("info.circle.fill", "Légère variation, continue à surveiller tes perfs.", .yellow)
+            }
+        }
+    }
+
+    // MARK: - Weekly Progress
+
+    private var weeklyProgressSection: some View {
+        let weekSessions = sessions.filter {
+            $0.started > Calendar.current.date(byAdding: .day, value: -7, to: Date())!
+        }
+        return HStack(spacing: 10) {
+            VStack(spacing: 6) {
+                Text("\(weekSessions.count)/\(weeklyGoal)")
+                    .font(.title3).fontWeight(.black)
+                    .foregroundStyle(weekSessions.count >= weeklyGoal ? .green : theme.color.accent)
+                Text("SÉANCES / SEM.")
+                    .font(.caption2).fontWeight(.bold).tracking(1).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(14)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+
+            // Week streak dots
+            VStack(spacing: 6) {
+                HStack(spacing: 4) {
+                    ForEach(0..<weeklyGoal, id: \.self) { i in
+                        Circle()
+                            .fill(i < weekSessions.count ? theme.color.accent : Color.secondary.opacity(0.2))
+                            .frame(width: 12, height: 12)
+                    }
+                }
+                Text(weekSessions.count >= weeklyGoal ? "OBJECTIF ATTEINT" : "CONTINUE")
+                    .font(.caption2).fontWeight(.bold).tracking(1)
+                    .foregroundStyle(weekSessions.count >= weeklyGoal ? .green : .secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(14)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+        }
+        .padding(.horizontal)
     }
 
     // MARK: - Weight Section

@@ -11,8 +11,12 @@ struct SettingsView: View {
     @AppStorage("reminderHour") private var reminderHour: Int = 18
     @AppStorage("reminderMinute") private var reminderMinute: Int = 0
     @AppStorage("reminderWeekdays") private var reminderWeekdaysRaw: String = "2,4,6"
+    @AppStorage("userGoal") private var userGoalRaw: String = ""
+    @AppStorage("targetWeight") private var targetWeight: Double = 0
+    @AppStorage("weeklyGoal") private var weeklyGoal: Int = 4
 
     @State private var notifService = NotificationService.shared
+    @State private var targetWeightInput: String = ""
     @State private var showResetOnboarding = false
     @AppStorage("onboardingCompleted") private var onboardingCompleted: Bool = false
 
@@ -51,6 +55,44 @@ struct SettingsView: View {
                             .foregroundStyle(theme.color.accent)
                         TextField("Prénom", text: $userName)
                             .textInputAutocapitalization(.words)
+                    }
+                }
+
+                // MARK: - Objectif
+                Section("Objectif") {
+                    Picker("Objectif", selection: Binding(
+                        get: { FitnessGoal(rawValue: userGoalRaw) ?? .maintain },
+                        set: { userGoalRaw = $0.rawValue }
+                    )) {
+                        ForEach(FitnessGoal.allCases) { goal in
+                            Label(goal.label, systemImage: goal.icon).tag(goal)
+                        }
+                    }
+
+                    let currentGoal = FitnessGoal(rawValue: userGoalRaw)
+                    if currentGoal?.hasWeightTarget == true {
+                        HStack {
+                            Label("Poids cible", systemImage: "target")
+                            Spacer()
+                            TextField("kg", text: $targetWeightInput)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 80)
+                                .onChange(of: targetWeightInput) { _, val in
+                                    if let kg = Double(val.replacingOccurrences(of: ",", with: ".")), kg > 0 {
+                                        targetWeight = kg
+                                    }
+                                }
+                                .onAppear {
+                                    if targetWeight > 0 {
+                                        targetWeightInput = String(format: "%.1f", targetWeight)
+                                    }
+                                }
+                        }
+                    }
+
+                    Stepper(value: $weeklyGoal, in: 1...7) {
+                        Label("\(weeklyGoal) séances / semaine", systemImage: "calendar.badge.clock")
                     }
                 }
 

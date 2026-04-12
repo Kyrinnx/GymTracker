@@ -3,6 +3,8 @@ import SwiftUI
 struct ContentView: View {
     @Environment(ThemeManager.self) private var theme
     @State private var selectedTab: Tab = .home
+    @AppStorage("tutorialCompleted") private var tutorialCompleted: Bool = false
+    @State private var showTutorial = false
 
     enum Tab: String, CaseIterable {
         case home, records, history, settings
@@ -25,13 +27,31 @@ struct ContentView: View {
     }
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            ForEach(Tab.allCases, id: \.self) { tab in
-                tabContent(for: tab)
-                    .tabItem {
-                        Label(tab.label, systemImage: tab.icon)
+        ZStack {
+            TabView(selection: $selectedTab) {
+                ForEach(Tab.allCases, id: \.self) { tab in
+                    tabContent(for: tab)
+                        .tabItem {
+                            Label(tab.label, systemImage: tab.icon)
+                        }
+                        .tag(tab)
+                }
+            }
+
+            if showTutorial {
+                SpotlightTutorial(isPresented: $showTutorial)
+                    .onChange(of: showTutorial) { _, shown in
+                        if !shown {
+                            tutorialCompleted = true
+                        }
                     }
-                    .tag(tab)
+            }
+        }
+        .onAppear {
+            if !tutorialCompleted {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    showTutorial = true
+                }
             }
         }
     }
