@@ -27,19 +27,18 @@ struct ContentView: View {
     }
 
     var body: some View {
-        ZStack {
-            TabView(selection: $selectedTab) {
-                ForEach(Tab.allCases, id: \.self) { tab in
-                    tabContent(for: tab)
-                        .tabItem {
-                            Label(tab.label, systemImage: tab.icon)
-                        }
-                        .tag(tab)
-                }
+        TabView(selection: $selectedTab) {
+            ForEach(Tab.allCases, id: \.self) { tab in
+                tabContent(for: tab)
+                    .tabItem {
+                        Label(tab.label, systemImage: tab.icon)
+                    }
+                    .tag(tab)
             }
-
+        }
+        .overlayPreferenceValue(SpotlightBoundsKey.self) { anchors in
             if showTutorial {
-                TutorialOverlay(isPresented: $showTutorial)
+                TutorialOverlay(isPresented: $showTutorial, anchors: anchors)
                     .onChange(of: showTutorial) { _, shown in
                         if !shown { tutorialCompleted = true }
                     }
