@@ -122,6 +122,13 @@ struct HomeView: View {
                                     .onTapGesture {
                                         startSession(fromCustom: tpl)
                                     }
+                                    .contextMenu {
+                                        Button {
+                                            duplicateCustomTemplate(tpl)
+                                        } label: {
+                                            Label("Dupliquer", systemImage: "doc.on.doc")
+                                        }
+                                    }
                             }
                             // "+" create card
                             Button {
@@ -176,15 +183,31 @@ struct HomeView: View {
                         }
                         .padding(.horizontal)
 
-                        LazyVGrid(columns: [.init(), .init()], spacing: 12) {
-                            ForEach(WorkoutTemplate.all) { tpl in
-                                TemplateCard(template: tpl)
-                                    .onTapGesture {
-                                        startSession(from: tpl)
-                                    }
+                        ForEach(WorkoutTemplate.grouped, id: \.category) { group in
+                            Text(group.category)
+                                .font(.caption2)
+                                .fontWeight(.bold)
+                                .foregroundStyle(theme.color.accent)
+                                .padding(.horizontal)
+                                .padding(.top, group.category == WorkoutTemplate.categories.first ? 0 : 4)
+
+                            LazyVGrid(columns: [.init(), .init()], spacing: 12) {
+                                ForEach(group.templates) { tpl in
+                                    TemplateCard(template: tpl)
+                                        .onTapGesture {
+                                            startSession(from: tpl)
+                                        }
+                                        .contextMenu {
+                                            Button {
+                                                duplicateAsCustom(tpl)
+                                            } label: {
+                                                Label("Ajouter à mes séances", systemImage: "plus.square.on.square")
+                                            }
+                                        }
+                                }
                             }
+                            .padding(.horizontal)
                         }
-                        .padding(.horizontal)
                     }
 
                     // Last session
@@ -301,6 +324,46 @@ struct HomeView: View {
         let session = WorkoutSession(templateName: "Séance libre")
         context.insert(session)
         activeSession = session
+    }
+
+    // MARK: - Duplicate Functions
+
+    private func duplicateAsCustom(_ template: WorkoutTemplate) {
+        let nextOrder = (customTemplates.map(\.order).max() ?? -1) + 1
+        let custom = CustomTemplate(name: template.name, subtitle: template.subtitle, order: nextOrder)
+        context.insert(custom)
+        for (i, ex) in template.exercises.enumerated() {
+            let cex = CustomTemplateExercise(
+                name: ex.name,
+                muscleGroup: ex.group,
+                scheme: ex.scheme,
+                restSeconds: 90,
+                defaultSets: ex.defaultSets.count,
+                defaultReps: ex.defaultSets.first?.reps ?? 10,
+                order: i
+            )
+            if custom.exercises == nil { custom.exercises = [] }
+            custom.exercises?.append(cex)
+        }
+    }
+
+    private func duplicateCustomTemplate(_ template: CustomTemplate) {
+        let nextOrder = (customTemplates.map(\.order).max() ?? -1) + 1
+        let copy = CustomTemplate(name: template.name, subtitle: template.subtitle, order: nextOrder)
+        context.insert(copy)
+        for ex in template.exercisesArray.sorted(by: { $0.order < $1.order }) {
+            let cex = CustomTemplateExercise(
+                name: ex.name,
+                muscleGroup: ex.group,
+                scheme: ex.scheme,
+                restSeconds: ex.restSeconds,
+                defaultSets: ex.defaultSets,
+                defaultReps: ex.defaultReps,
+                order: ex.order
+            )
+            if copy.exercises == nil { copy.exercises = [] }
+            copy.exercises?.append(cex)
+        }
     }
 
     // MARK: - Favorites Section

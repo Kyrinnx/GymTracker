@@ -5,6 +5,7 @@ struct HistoryView: View {
     @Environment(ThemeManager.self) private var theme
     @Environment(\.modelContext) private var context
     @Query(sort: \WorkoutSession.started, order: .reverse) private var sessions: [WorkoutSession]
+    @Query(sort: \CustomTemplate.order) private var customTemplates: [CustomTemplate]
 
     private var weekSessions: [WorkoutSession] {
         let week = Calendar.current.date(byAdding: .day, value: -7, to: Date())!
@@ -102,9 +103,37 @@ struct HistoryView: View {
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .contextMenu {
+            if session.finished != nil {
+                Button {
+                    saveSessionAsTemplate(session)
+                } label: {
+                    Label("Sauvegarder comme programme", systemImage: "square.and.arrow.down")
+                }
+            }
             Button(role: .destructive) { context.delete(session) } label: {
                 Label("Supprimer", systemImage: "trash")
             }
+        }
+    }
+
+    private func saveSessionAsTemplate(_ session: WorkoutSession) {
+        let nextOrder = (customTemplates.map(\.order).max() ?? -1) + 1
+        let custom = CustomTemplate(name: session.templateName, subtitle: "", order: nextOrder)
+        context.insert(custom)
+        for ex in session.exercisesArray.sorted(by: { $0.order < $1.order }) {
+            let doneSetsCount = ex.setsArray.filter(\.done).count
+            let firstReps = ex.setsArray.sorted(by: { $0.order < $1.order }).first?.reps ?? 10
+            let cex = CustomTemplateExercise(
+                name: ex.name,
+                muscleGroup: ex.group,
+                scheme: ex.scheme,
+                restSeconds: ex.restSeconds,
+                defaultSets: max(doneSetsCount, 1),
+                defaultReps: firstReps,
+                order: ex.order
+            )
+            if custom.exercises == nil { custom.exercises = [] }
+            custom.exercises?.append(cex)
         }
     }
 }

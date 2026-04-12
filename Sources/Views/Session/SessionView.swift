@@ -24,6 +24,9 @@ struct SessionView: View {
     @State private var showRestConfig = false
     @State private var showCancelConfirm = false
     @State private var showFinishConfirm = false
+    @State private var showSaveAsTemplate = false
+
+    @Query(sort: \CustomTemplate.order) private var customTemplates: [CustomTemplate]
 
     private var elapsedMinutes: Int { elapsedSeconds / 60 }
     private var estimatedCalories: Int { elapsedMinutes * 7 }
@@ -61,6 +64,17 @@ struct SessionView: View {
             Button("Continuer", role: .cancel) {}
         } message: {
             Text("Les séries non complétées seront ignorées.")
+        }
+        .confirmationDialog("Séance terminée !", isPresented: $showSaveAsTemplate, titleVisibility: .visible) {
+            Button("Sauvegarder comme programme") {
+                saveSessionAsTemplate()
+                dismiss()
+            }
+            Button("Non merci", role: .cancel) {
+                dismiss()
+            }
+        } message: {
+            Text("Veux-tu sauvegarder cette séance comme programme ?")
         }
     }
 
@@ -548,7 +562,28 @@ struct SessionView: View {
         }
 
         stopAllTimers()
-        dismiss()
+        showSaveAsTemplate = true
+    }
+
+    private func saveSessionAsTemplate() {
+        let nextOrder = (customTemplates.map(\.order).max() ?? -1) + 1
+        let custom = CustomTemplate(name: session.templateName, subtitle: "", order: nextOrder)
+        context.insert(custom)
+        for ex in session.exercisesArray.sorted(by: { $0.order < $1.order }) {
+            let doneSetsCount = ex.setsArray.filter(\.done).count
+            let firstReps = ex.setsArray.sorted(by: { $0.order < $1.order }).first?.reps ?? 10
+            let cex = CustomTemplateExercise(
+                name: ex.name,
+                muscleGroup: ex.group,
+                scheme: ex.scheme,
+                restSeconds: ex.restSeconds,
+                defaultSets: max(doneSetsCount, 1),
+                defaultReps: firstReps,
+                order: ex.order
+            )
+            if custom.exercises == nil { custom.exercises = [] }
+            custom.exercises?.append(cex)
+        }
     }
 
     private func cancelSession() {
