@@ -5,6 +5,7 @@ struct ContentView: View {
     @State private var selectedTab: Tab = .home
     @AppStorage("tutorialCompleted") private var tutorialCompleted: Bool = false
     @State private var showTutorial = false
+    @State private var spotlightFrames: [SpotlightItem] = []
 
     enum Tab: String, CaseIterable {
         case home, records, history, settings
@@ -24,6 +25,9 @@ struct ContentView: View {
             case .settings: "gearshape.fill"
             }
         }
+        var spotlightKey: String {
+            "tab_\(rawValue)"
+        }
     }
 
     var body: some View {
@@ -37,9 +41,32 @@ struct ContentView: View {
                         .tag(tab)
                 }
             }
+            // Invisible anchors over tab bar area
+            .overlay(alignment: .bottom) {
+                GeometryReader { geo in
+                    let tabCount = CGFloat(Tab.allCases.count)
+                    let tabWidth = geo.size.width / tabCount
+                    let tabBarHeight: CGFloat = 49
+                    let bottomY = geo.size.height - geo.safeAreaInsets.bottom
+
+                    ForEach(Array(Tab.allCases.enumerated()), id: \.element) { index, tab in
+                        Color.clear
+                            .frame(width: tabWidth, height: tabBarHeight)
+                            .position(
+                                x: tabWidth * CGFloat(index) + tabWidth / 2,
+                                y: bottomY - tabBarHeight / 2
+                            )
+                            .spotlightTag(tab.spotlightKey)
+                    }
+                }
+                .allowsHitTesting(false)
+            }
+            .onPreferenceChange(SpotlightPreferenceKey.self) { items in
+                spotlightFrames = items
+            }
 
             if showTutorial {
-                SpotlightTutorial(isPresented: $showTutorial)
+                SpotlightTutorial(isPresented: $showTutorial, spotlightFrames: spotlightFrames)
                     .onChange(of: showTutorial) { _, shown in
                         if !shown {
                             tutorialCompleted = true
@@ -49,7 +76,7 @@ struct ContentView: View {
         }
         .onAppear {
             if !tutorialCompleted {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                     showTutorial = true
                 }
             }

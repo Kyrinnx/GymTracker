@@ -22,13 +22,17 @@ struct BodyMapView: View {
         activeGroups.contains(group)
     }
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         ZStack {
-            // Base body image
+            // Base body image — darken in light mode for contrast
             Image(showBack ? "BodyBack" : "BodyFront")
+                .renderingMode(.original)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .opacity(0.85)
+                .brightness(colorScheme == .light ? -0.55 : 0)
+                .opacity(0.9)
 
             // Colored overlays for active muscles
             GeometryReader { geo in
