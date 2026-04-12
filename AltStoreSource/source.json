@@ -22,6 +22,14 @@
       "screenshotURLs": [],
       "versions": [
         {
+          "version": "1.8.2",
+          "date": "2026-04-12",
+          "localizedDescription": "Fix tutoriel, body map et tooltips",
+          "downloadURL": "https://github.com/Kyrinnx/GymTracker/releases/download/v1.8.2/GymTracker.ipa",
+          "size": 1761984,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "1.8.1",
           "date": "2026-04-12",
           "localizedDescription": "Fix body map, tooltips, tutoriel spotlight guidé",
