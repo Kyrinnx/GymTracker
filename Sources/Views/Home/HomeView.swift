@@ -83,7 +83,6 @@ struct HomeView: View {
                     }
                     .buttonStyle(.plain)
                     .padding(.horizontal)
-                    .spotlightTag("free_session")
 
                     // Custom templates section — always visible
                     VStack(alignment: .leading, spacing: 12) {
@@ -105,7 +104,6 @@ struct HomeView: View {
                                 .fontWeight(.semibold)
                                 .foregroundStyle(theme.color.accent)
                             }
-                            .spotlightTag("ai_import")
                             if !customTemplates.isEmpty {
                                 NavigationLink {
                                     TemplateListView()
@@ -177,7 +175,6 @@ struct HomeView: View {
                         }
                         .padding(.horizontal)
                     }
-                    .spotlightTag("my_sessions")
 
                     // Bibliothèque link
                     NavigationLink {

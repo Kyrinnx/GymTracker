@@ -1,224 +1,242 @@
 import SwiftUI
 
-// MARK: - Spotlight Preference Key
+// MARK: - Tutorial
 
-struct SpotlightItem: Equatable {
-    let key: String
-    let frame: CGRect
-}
-
-struct SpotlightPreferenceKey: PreferenceKey {
-    static var defaultValue: [SpotlightItem] = []
-    static func reduce(value: inout [SpotlightItem], nextValue: () -> [SpotlightItem]) {
-        value.append(contentsOf: nextValue())
-    }
-}
-
-extension View {
-    func spotlightTag(_ key: String) -> some View {
-        self.background(
-            GeometryReader { geo in
-                Color.clear.preference(
-                    key: SpotlightPreferenceKey.self,
-                    value: [SpotlightItem(key: key, frame: geo.frame(in: .global))]
-                )
-            }
-        )
-    }
-}
-
-// MARK: - Tutorial Step
-
-struct TutorialStep {
-    let spotlightKey: String
-    let title: String
-    let message: String
-    let icon: String
-    let arrowEdge: Edge
-}
-
-// MARK: - Spotlight Tutorial Overlay
-
-struct SpotlightTutorial: View {
+struct TutorialOverlay: View {
     @Environment(ThemeManager.self) private var theme
     @Binding var isPresented: Bool
-    let spotlightFrames: [SpotlightItem]
-
     @State private var currentStep = 0
-    @State private var opacity: Double = 0
 
-    static let steps: [TutorialStep] = [
-        TutorialStep(
-            spotlightKey: "tab_home",
+    private struct Step {
+        let title: String
+        let message: String
+        let icon: String
+        /// Where the tooltip should appear vertically (0 = top, 1 = bottom)
+        let position: Position
+
+        enum Position {
+            case top      // tooltip at top, pointing down
+            case center   // tooltip centered
+            case bottom   // tooltip at bottom, pointing up
+        }
+    }
+
+    private let steps: [Step] = [
+        Step(
+            title: "Bienvenue dans GymTracker !",
+            message: "On va te faire un rapide tour de l'app. Tape n'importe où ou sur \"Suivant\" pour continuer.",
+            icon: "hand.wave.fill",
+            position: .center
+        ),
+        Step(
             title: "Accueil",
-            message: "Ton tableau de bord : lance une séance, gère tes programmes et suis ton corps.",
+            message: "C'est ton tableau de bord. Tu y trouves tes stats, tes programmes et tu peux lancer une séance.",
             icon: "house.fill",
-            arrowEdge: .bottom
+            position: .bottom
         ),
-        TutorialStep(
-            spotlightKey: "free_session",
+        Step(
             title: "Séance libre",
-            message: "Lance une séance sans programme. Tu ajoutes tes exercices au fur et à mesure.",
+            message: "Lance une séance sans programme défini. Tu ajoutes tes exercices au fur et à mesure.",
             icon: "bolt.fill",
-            arrowEdge: .top
+            position: .center
         ),
-        TutorialStep(
-            spotlightKey: "my_sessions",
+        Step(
             title: "Tes programmes",
-            message: "Crée tes propres programmes avec le \"+\". Appui long pour dupliquer, mettre en favori ou supprimer.",
+            message: "Crée tes propres programmes avec le \"+\". Appui long sur un programme pour le dupliquer, mettre en favori ou supprimer.",
             icon: "rectangle.stack.fill",
-            arrowEdge: .top
+            position: .center
         ),
-        TutorialStep(
-            spotlightKey: "ai_import",
+        Step(
             title: "Import IA",
-            message: "Copie le prompt, envoie-le à ChatGPT ou Claude, et colle le résultat pour importer tes séances.",
+            message: "Copie le prompt, envoie-le à ChatGPT ou Claude, puis colle le JSON pour importer tes séances automatiquement.",
             icon: "sparkles",
-            arrowEdge: .top
+            position: .center
         ),
-        TutorialStep(
-            spotlightKey: "tab_records",
-            title: "Progrès",
-            message: "Suis ton poids, tes records personnels, ton 1RM et ta progression vers ton objectif.",
+        Step(
+            title: "Progrès & Records",
+            message: "Suis ton poids, tes records personnels, ton 1RM estimé et ta progression vers ton objectif.",
             icon: "trophy.fill",
-            arrowEdge: .bottom
+            position: .bottom
         ),
-        TutorialStep(
-            spotlightKey: "tab_history",
+        Step(
             title: "Historique",
-            message: "Retrouve toutes tes séances. Appui long pour sauvegarder une séance comme programme.",
+            message: "Retrouve toutes tes séances passées. Appui long sur une séance pour la sauvegarder comme programme.",
             icon: "clock.fill",
-            arrowEdge: .bottom
+            position: .bottom
         ),
-        TutorialStep(
-            spotlightKey: "tab_settings",
+        Step(
             title: "Réglages",
-            message: "Thème, rappels, objectif, sauvegardes iCloud — tout se configure ici.",
+            message: "Change ton thème, configure tes rappels, modifie ton objectif et gère tes sauvegardes iCloud.",
             icon: "gearshape.fill",
-            arrowEdge: .bottom
+            position: .bottom
+        ),
+        Step(
+            title: "C'est parti !",
+            message: "Tu es prêt. Lance ta première séance et commence à progresser !",
+            icon: "flame.fill",
+            position: .center
         ),
     ]
 
-    private var step: TutorialStep { Self.steps[currentStep] }
-
-    private var spotlightFrame: CGRect? {
-        spotlightFrames.first { $0.key == step.spotlightKey }?.frame
-    }
-
     var body: some View {
         ZStack {
-            // Dark overlay with cutout
-            SpotlightCutout(highlight: spotlightFrame ?? .zero)
-                .fill(style: FillStyle(eoFill: true))
-                .foregroundStyle(.black.opacity(0.75))
+            // Full dark overlay
+            Color.black.opacity(0.82)
                 .ignoresSafeArea()
-                .onTapGesture {
-                    advanceStep()
-                }
+                .onTapGesture { advance() }
 
-            // Spotlight ring
-            if let frame = spotlightFrame {
-                RoundedRectangle(cornerRadius: 14)
-                    .strokeBorder(theme.color.accent, lineWidth: 2)
-                    .frame(width: frame.width + 12, height: frame.height + 12)
-                    .position(x: frame.midX, y: frame.midY)
-            }
+            GeometryReader { geo in
+                let step = steps[currentStep]
 
-            // Tooltip card
-            tooltipCard
-        }
-        .opacity(opacity)
-        .onAppear {
-            withAnimation(.easeIn(duration: 0.3)) { opacity = 1 }
-        }
-    }
-
-    private var tooltipCard: some View {
-        GeometryReader { geo in
-            let frame = spotlightFrame ?? CGRect(x: geo.size.width / 2, y: geo.size.height / 2, width: 0, height: 0)
-            let cardWidth: CGFloat = min(geo.size.width - 48, 320)
-            let above = step.arrowEdge == .bottom || frame.minY > geo.size.height * 0.5
-            let cardY = above
-                ? frame.minY - 16
-                : frame.maxY + 16
-
-            VStack(spacing: 12) {
-                if !above {
-                    // Arrow pointing up
-                    triangle
-                        .frame(width: 16, height: 8)
-                        .foregroundStyle(Color(.systemBackground))
-                }
-
-                VStack(spacing: 12) {
-                    HStack(spacing: 8) {
-                        Image(systemName: step.icon)
-                            .font(.title3)
-                            .foregroundStyle(theme.color.accent)
-                        Text(step.title)
-                            .font(.headline)
+                VStack(spacing: 0) {
+                    if step.position == .bottom || step.position == .center {
+                        Spacer()
                     }
 
-                    Text(step.message)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if step.position == .top {
+                        Spacer().frame(height: geo.safeAreaInsets.top + 20)
+                    }
 
-                    // Progress + buttons
-                    HStack(spacing: 6) {
-                        ForEach(0..<Self.steps.count, id: \.self) { i in
+                    // Card
+                    VStack(spacing: 16) {
+                        // Icon circle
+                        ZStack {
                             Circle()
-                                .fill(i == currentStep ? theme.color.accent : Color.secondary.opacity(0.3))
-                                .frame(width: 5, height: 5)
+                                .fill(theme.color.accent.opacity(0.15))
+                                .frame(width: 64, height: 64)
+                            Image(systemName: step.icon)
+                                .font(.system(size: 28))
+                                .foregroundStyle(theme.color.gradient)
                         }
-                    }
 
-                    HStack(spacing: 16) {
-                        Button("Passer") { dismiss() }
+                        Text(step.title)
+                            .font(.title3.bold())
+                            .foregroundStyle(.white)
+
+                        Text(step.message)
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.white.opacity(0.7))
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
 
-                        Button {
-                            advanceStep()
-                        } label: {
-                            Text(currentStep == Self.steps.count - 1 ? "C'est parti !" : "Suivant")
-                                .font(.subheadline.bold())
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 24)
-                                .padding(.vertical, 10)
-                                .background(theme.color.gradient)
-                                .clipShape(Capsule())
+                        // Progress dots
+                        HStack(spacing: 6) {
+                            ForEach(0..<steps.count, id: \.self) { i in
+                                Capsule()
+                                    .fill(i == currentStep ? theme.color.accent : Color.white.opacity(0.2))
+                                    .frame(width: i == currentStep ? 20 : 6, height: 6)
+                            }
                         }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(20)
-                .background(Color(.systemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .shadow(color: .black.opacity(0.2), radius: 20)
+                        .padding(.top, 4)
 
-                if above {
-                    triangle
-                        .rotationEffect(.degrees(180))
-                        .frame(width: 16, height: 8)
-                        .foregroundStyle(Color(.systemBackground))
+                        // Buttons
+                        HStack(spacing: 20) {
+                            if currentStep > 0 {
+                                Button("Passer") { dismiss() }
+                                    .font(.subheadline)
+                                    .foregroundStyle(.white.opacity(0.5))
+                            }
+
+                            Button {
+                                advance()
+                            } label: {
+                                Text(currentStep == steps.count - 1 ? "C'est parti !" : "Suivant")
+                                    .font(.subheadline.bold())
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 28)
+                                    .padding(.vertical, 11)
+                                    .background(theme.color.gradient)
+                                    .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(28)
+                    .background(
+                        RoundedRectangle(cornerRadius: 24)
+                            .fill(.ultraThinMaterial.opacity(0.4))
+                            .background(
+                                RoundedRectangle(cornerRadius: 24)
+                                    .fill(Color.black.opacity(0.5))
+                            )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 24))
+                    .padding(.horizontal, 28)
+
+                    if step.position == .top || step.position == .center {
+                        Spacer()
+                    }
+
+                    if step.position == .bottom {
+                        // Tab bar hint
+                        tabBarHint(geo: geo)
+                    }
                 }
             }
-            .frame(width: cardWidth)
-            .position(
-                x: min(max(frame.midX, cardWidth / 2 + 24), geo.size.width - cardWidth / 2 - 24),
-                y: above ? cardY - 80 : cardY + 80
-            )
+
+            // Step counter
+            VStack {
+                HStack {
+                    Spacer()
+                    Text("\(currentStep + 1)/\(steps.count)")
+                        .font(.caption2.bold())
+                        .foregroundStyle(.white.opacity(0.4))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(.ultraThinMaterial.opacity(0.3))
+                        .clipShape(Capsule())
+                    .padding(.trailing, 20)
+                }
+                .padding(.top, 8)
+                Spacer()
+            }
         }
+        .transition(.opacity)
     }
 
-    private var triangle: some View {
-        Triangle()
+    // MARK: - Tab bar visual hint
+
+    @ViewBuilder
+    private func tabBarHint(geo: GeometryProxy) -> some View {
+        let tabLabels = ["Accueil", "Records", "Historique", "Réglages"]
+        let tabIcons = ["house.fill", "trophy.fill", "clock.fill", "gearshape.fill"]
+        let step = steps[currentStep]
+        let highlightIndex: Int? = {
+            switch step.icon {
+            case "trophy.fill": return 1
+            case "clock.fill": return 2
+            case "gearshape.fill": return 3
+            case "house.fill": return 0
+            default: return nil
+            }
+        }()
+
+        HStack(spacing: 0) {
+            ForEach(0..<4, id: \.self) { i in
+                VStack(spacing: 4) {
+                    Image(systemName: tabIcons[i])
+                        .font(.system(size: 20))
+                    Text(tabLabels[i])
+                        .font(.caption2)
+                }
+                .frame(maxWidth: .infinity)
+                .foregroundStyle(highlightIndex == i ? theme.color.accent : .white.opacity(0.3))
+                .scaleEffect(highlightIndex == i ? 1.15 : 1.0)
+            }
+        }
+        .padding(.vertical, 12)
+        .padding(.bottom, geo.safeAreaInsets.bottom > 0 ? geo.safeAreaInsets.bottom : 16)
+        .background(
+            RoundedRectangle(cornerRadius: 0)
+                .fill(.ultraThinMaterial.opacity(0.3))
+                .ignoresSafeArea(edges: .bottom)
+        )
     }
 
-    private func advanceStep() {
-        if currentStep < Self.steps.count - 1 {
+    // MARK: - Actions
+
+    private func advance() {
+        if currentStep < steps.count - 1 {
             withAnimation(.spring(duration: 0.35)) { currentStep += 1 }
         } else {
             dismiss()
@@ -226,36 +244,6 @@ struct SpotlightTutorial: View {
     }
 
     private func dismiss() {
-        withAnimation(.easeOut(duration: 0.2)) { opacity = 0 }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { isPresented = false }
-    }
-}
-
-// MARK: - Shapes
-
-private struct SpotlightCutout: Shape {
-    var highlight: CGRect
-    var animatableData: CGRect.AnimatableData {
-        get { highlight.animatableData }
-        set { highlight.animatableData = newValue }
-    }
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.addRect(rect)
-        let inset = highlight.insetBy(dx: -6, dy: -6)
-        path.addRoundedRect(in: inset, cornerSize: CGSize(width: 14, height: 14))
-        return path
-    }
-}
-
-private struct Triangle: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
-        path.closeSubpath()
-        return path
+        withAnimation(.easeOut(duration: 0.25)) { isPresented = false }
     }
 }
