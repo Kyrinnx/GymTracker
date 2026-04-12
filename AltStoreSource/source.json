@@ -6,7 +6,9 @@
   "headerURL": "https://raw.githubusercontent.com/Kyrinnx/GymTracker/main/AltStoreSource/header.png",
   "website": "https://github.com/Kyrinnx/GymTracker",
   "tintColor": "#FF6B35",
-  "featuredApps": ["com.quentin.gymtracker"],
+  "featuredApps": [
+    "com.quentin.gymtracker"
+  ],
   "apps": [
     {
       "name": "GymTracker",
@@ -19,6 +21,14 @@
       "category": "lifestyle",
       "screenshotURLs": [],
       "versions": [
+        {
+          "version": "1.0.0",
+          "date": "2026-04-12",
+          "localizedDescription": "Première version — musculation, nutrition, jeûne, HealthKit",
+          "downloadURL": "https://github.com/Kyrinnx/GymTracker/releases/download/v1.0.0/GymTracker.ipa",
+          "size": 2161806,
+          "minOSVersion": "17.0"
+        },
         {
           "version": "1.0.0",
           "date": "2026-04-12",
