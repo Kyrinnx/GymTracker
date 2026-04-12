@@ -14,6 +14,7 @@ struct HomeView: View {
     @State private var showTemplateList = false
     @State private var newTemplate: CustomTemplate?
     @State private var showAIImport = false
+    @State private var templateToDelete: CustomTemplate?
 
     private var weekSessions: [WorkoutSession] {
         let week = Calendar.current.date(byAdding: .day, value: -7, to: Date())!
@@ -124,9 +125,21 @@ struct HomeView: View {
                                     }
                                     .contextMenu {
                                         Button {
+                                            tpl.isFavorite.toggle()
+                                        } label: {
+                                            Label(tpl.isFavorite ? "Retirer des favoris" : "Mettre en favori",
+                                                  systemImage: tpl.isFavorite ? "star.slash" : "star")
+                                        }
+                                        Button {
                                             duplicateCustomTemplate(tpl)
                                         } label: {
                                             Label("Dupliquer", systemImage: "doc.on.doc")
+                                        }
+                                        Divider()
+                                        Button(role: .destructive) {
+                                            templateToDelete = tpl
+                                        } label: {
+                                            Label("Supprimer", systemImage: "trash")
                                         }
                                     }
                             }
@@ -214,6 +227,20 @@ struct HomeView: View {
         }
         .sheet(isPresented: $showAIImport) {
             AIImportSheet()
+        }
+        .alert("Supprimer ce programme ?", isPresented: Binding(
+            get: { templateToDelete != nil },
+            set: { if !$0 { templateToDelete = nil } }
+        )) {
+            Button("Annuler", role: .cancel) { templateToDelete = nil }
+            Button("Supprimer", role: .destructive) {
+                if let tpl = templateToDelete {
+                    context.delete(tpl)
+                    templateToDelete = nil
+                }
+            }
+        } message: {
+            Text("Cette action est irréversible.")
         }
     }
 
@@ -608,9 +635,16 @@ struct CustomTemplateCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(template.name.isEmpty ? "Sans nom" : template.name)
-                .font(.headline)
-                .fontWeight(.bold)
+            HStack(spacing: 4) {
+                Text(template.name.isEmpty ? "Sans nom" : template.name)
+                    .font(.headline)
+                    .fontWeight(.bold)
+                if template.isFavorite {
+                    Image(systemName: "star.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.yellow)
+                }
+            }
             if !template.subtitle.isEmpty {
                 Text(template.subtitle)
                     .font(.subheadline)

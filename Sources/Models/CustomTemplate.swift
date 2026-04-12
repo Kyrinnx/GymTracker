@@ -6,6 +6,7 @@ final class CustomTemplate {
     var name: String = ""
     var subtitle: String = ""
     var order: Int = 0
+    var isFavorite: Bool = false
     @Relationship(deleteRule: .cascade) var exercises: [CustomTemplateExercise]? = []
 
     init(name: String, subtitle: String = "", order: Int = 0) {
