@@ -8,12 +8,8 @@ struct ExportPayload: Codable {
     var exportedAt: Date = Date()
     var sessions: [SessionDTO] = []
     var weights: [WeightDTO] = []
-    var meals: [MealDTO] = []
-    var waters: [WaterDTO] = []
     var customTemplates: [CustomTemplateDTO] = []
     var exerciseInfos: [ExerciseInfoDTO] = []
-    var favoriteFoods: [FavoriteFoodDTO] = []
-    var fastingSessions: [FastingDTO] = []
 }
 
 struct SessionDTO: Codable {
@@ -47,24 +43,6 @@ struct WeightDTO: Codable {
     var bodyFat: Double?
 }
 
-struct MealDTO: Codable {
-    var name: String
-    var mealType: String
-    var calories: Int
-    var protein: Double
-    var carbs: Double
-    var fat: Double
-    var fiber: Double
-    var sugar: Double
-    var date: Date
-}
-
-struct WaterDTO: Codable {
-    var date: Date
-    var glasses: Int
-    var milliliters: Int?
-}
-
 struct CustomTemplateDTO: Codable {
     var name: String
     var subtitle: String
@@ -88,26 +66,6 @@ struct ExerciseInfoDTO: Codable {
     var isFavorite: Bool
     var personalRecord: Double
     var notes: String
-}
-
-struct FavoriteFoodDTO: Codable {
-    var name: String
-    var emoji: String
-    var portion: String
-    var kcal: Int
-    var protein: Double
-    var carbs: Double
-    var fat: Double
-    var fiber: Double
-    var sugar: Double
-    var addedAt: Date
-}
-
-struct FastingDTO: Codable {
-    var startDate: Date
-    var plannedEndDate: Date
-    var actualEndDate: Date?
-    var methodRaw: String
 }
 
 // MARK: - Service
@@ -145,18 +103,6 @@ enum DataExportService {
         let weights = (try? context.fetch(FetchDescriptor<WeightEntry>())) ?? []
         payload.weights = weights.map { WeightDTO(date: $0.date, kg: $0.kg, bodyFat: $0.bodyFat) }
 
-        let meals = (try? context.fetch(FetchDescriptor<MealEntry>())) ?? []
-        payload.meals = meals.map {
-            MealDTO(
-                name: $0.name, mealType: $0.mealType, calories: $0.calories,
-                protein: $0.protein, carbs: $0.carbs, fat: $0.fat,
-                fiber: $0.fiber, sugar: $0.sugar, date: $0.date
-            )
-        }
-
-        let waters = (try? context.fetch(FetchDescriptor<WaterEntry>())) ?? []
-        payload.waters = waters.map { WaterDTO(date: $0.date, glasses: $0.glasses, milliliters: $0.milliliters) }
-
         let templates = (try? context.fetch(FetchDescriptor<CustomTemplate>())) ?? []
         payload.customTemplates = templates.map { tpl in
             CustomTemplateDTO(
@@ -176,23 +122,6 @@ enum DataExportService {
             ExerciseInfoDTO(
                 name: $0.name, muscleGroup: $0.muscleGroup,
                 isFavorite: $0.isFavorite, personalRecord: $0.personalRecord, notes: $0.notes
-            )
-        }
-
-        let favs = (try? context.fetch(FetchDescriptor<FavoriteFood>())) ?? []
-        payload.favoriteFoods = favs.map {
-            FavoriteFoodDTO(
-                name: $0.name, emoji: $0.emoji, portion: $0.portion,
-                kcal: $0.kcal, protein: $0.protein, carbs: $0.carbs, fat: $0.fat,
-                fiber: $0.fiber, sugar: $0.sugar, addedAt: $0.addedAt
-            )
-        }
-
-        let fasts = (try? context.fetch(FetchDescriptor<FastingSession>())) ?? []
-        payload.fastingSessions = fasts.map {
-            FastingDTO(
-                startDate: $0.startDate, plannedEndDate: $0.plannedEndDate,
-                actualEndDate: $0.actualEndDate, methodRaw: $0.methodRaw
             )
         }
 
@@ -247,20 +176,6 @@ enum DataExportService {
             context.insert(WeightEntry(date: w.date, kg: w.kg, bodyFat: w.bodyFat))
         }
 
-        for m in payload.meals {
-            let type = MealType(rawValue: m.mealType) ?? .lunch
-            context.insert(MealEntry(
-                name: m.name, type: type, calories: m.calories,
-                protein: m.protein, carbs: m.carbs, fat: m.fat,
-                fiber: m.fiber, sugar: m.sugar, date: m.date
-            ))
-        }
-
-        for w in payload.waters {
-            let entry = WaterEntry(date: w.date, glasses: w.glasses, milliliters: w.milliliters ?? 0)
-            context.insert(entry)
-        }
-
         for tpl in payload.customTemplates {
             let template = CustomTemplate(name: tpl.name, subtitle: tpl.subtitle, order: tpl.order)
             context.insert(template)
@@ -283,26 +198,6 @@ enum DataExportService {
             ))
         }
 
-        for fav in payload.favoriteFoods {
-            // Build a synthetic FoodItem to reuse the FavoriteFood initializer
-            let synthetic = FoodItem(
-                name: fav.name, emoji: fav.emoji, portion: fav.portion,
-                grams: 0, kcal: fav.kcal, protein: fav.protein, carbs: fav.carbs,
-                fat: fav.fat, fiber: fav.fiber, sugar: fav.sugar, category: .snacks
-            )
-            let entry = FavoriteFood(item: synthetic)
-            entry.addedAt = fav.addedAt
-            context.insert(entry)
-        }
-
-        for f in payload.fastingSessions {
-            let method = FastingMethod(rawValue: f.methodRaw) ?? .sixteen8
-            let entry = FastingSession(method: method, startDate: f.startDate)
-            entry.plannedEndDate = f.plannedEndDate
-            entry.actualEndDate = f.actualEndDate
-            context.insert(entry)
-        }
-
         try context.save()
     }
 
@@ -312,13 +207,9 @@ enum DataExportService {
         try context.delete(model: ExerciseEntry.self)
         try context.delete(model: WorkoutSet.self)
         try context.delete(model: WeightEntry.self)
-        try context.delete(model: MealEntry.self)
-        try context.delete(model: WaterEntry.self)
         try context.delete(model: CustomTemplate.self)
         try context.delete(model: CustomTemplateExercise.self)
         try context.delete(model: ExerciseInfo.self)
-        try context.delete(model: FavoriteFood.self)
-        try context.delete(model: FastingSession.self)
         try context.save()
     }
 }

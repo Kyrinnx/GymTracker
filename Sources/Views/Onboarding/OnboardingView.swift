@@ -7,7 +7,6 @@ struct OnboardingView: View {
     @Environment(\.modelContext) private var context
     @AppStorage("onboardingCompleted") private var onboardingCompleted: Bool = false
     @AppStorage("userName") private var userName: String = ""
-    @AppStorage("calGoal") private var calGoal: Int = 2200
 
     @State private var step: Int = 0
     @State private var weightInput: String = ""
@@ -194,7 +193,7 @@ struct OnboardingView: View {
                 Text("GymTracker")
                     .font(.system(size: 40, weight: .black))
 
-                Text("Suis tes séances, ta nutrition\net ta progression")
+                Text("Suis tes séances de muscu\net ta progression")
                     .font(.body)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
@@ -297,20 +296,6 @@ struct OnboardingView: View {
                     }
                 }
 
-                HStack {
-                    Text("OBJECTIF CALORIQUE")
-                        .font(.caption2).fontWeight(.bold).tracking(1).foregroundStyle(.secondary)
-                    Spacer()
-                    TextField("kcal", value: $calGoal, format: .number)
-                        .keyboardType(.numberPad)
-                        .multilineTextAlignment(.trailing)
-                        .font(.title3.bold())
-                        .frame(width: 100)
-                        .padding(10)
-                        .background(.regularMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                .padding(.top, 8)
             }
             .padding(.horizontal, 32)
         }

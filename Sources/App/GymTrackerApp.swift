@@ -12,13 +12,9 @@ struct GymTrackerApp: App {
             ExerciseEntry.self,
             WorkoutSet.self,
             WeightEntry.self,
-            MealEntry.self,
-            WaterEntry.self,
             CustomTemplate.self,
             CustomTemplateExercise.self,
             ExerciseInfo.self,
-            FavoriteFood.self,
-            FastingSession.self,
         ])
         // Local-only configuration — works with a free Apple ID, no paid Developer Program required.
         let config = ModelConfiguration(schema: schema, cloudKitDatabase: .none)

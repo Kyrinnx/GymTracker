@@ -6,11 +6,6 @@ struct SettingsView: View {
     @Environment(ThemeManager.self) private var theme
     @Environment(\.modelContext) private var context
     @AppStorage("userName") private var userName: String = ""
-    @AppStorage("calGoal") private var calGoal: Int = 2200
-
-    // HealthKit
-    @AppStorage("healthKitEnabled") private var healthKitEnabled: Bool = false
-
     // Workout reminders
     @AppStorage("remindersEnabled") private var remindersEnabled: Bool = false
     @AppStorage("reminderHour") private var reminderHour: Int = 18
@@ -18,7 +13,6 @@ struct SettingsView: View {
     @AppStorage("reminderWeekdays") private var reminderWeekdaysRaw: String = "2,4,6"
 
     @State private var notifService = NotificationService.shared
-    @State private var healthKitError: String?
     @State private var showResetOnboarding = false
     @AppStorage("onboardingCompleted") private var onboardingCompleted: Bool = false
 
@@ -58,16 +52,6 @@ struct SettingsView: View {
                         TextField("Prénom", text: $userName)
                             .textInputAutocapitalization(.words)
                     }
-                    HStack {
-                        Image(systemName: "flame.fill")
-                            .foregroundStyle(.orange)
-                        Text("Objectif kcal")
-                        Spacer()
-                        TextField("kcal", value: $calGoal, format: .number)
-                            .keyboardType(.numberPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 80)
-                    }
                 }
 
                 // MARK: - Apparence
@@ -93,66 +77,6 @@ struct SettingsView: View {
                 // MARK: - Aperçu
                 Section("Aperçu") {
                     themePreview
-                }
-
-                // MARK: - Santé (HealthKit)
-                Section {
-                    Toggle(isOn: Binding(
-                        get: { healthKitEnabled },
-                        set: { newValue in
-                            if newValue {
-                                if !HealthKitService.shared.isAvailable {
-                                    healthKitError = "HealthKit n'est pas disponible sur cet appareil. Vérifie que l'app Santé est installée."
-                                    return
-                                }
-                                Task {
-                                    let ok = await HealthKitService.shared.requestAuthorization()
-                                    await MainActor.run {
-                                        healthKitEnabled = ok
-                                        if !ok {
-                                            healthKitError = "L'autorisation a échoué.\n\n1. Va dans Réglages iOS → Santé → Accès données → GymTracker et autorise tout.\n2. Si GymTracker n'apparaît pas, l'entitlement HealthKit n'est peut-être pas supporté par AltStore sur ta version iOS."
-                                        }
-                                    }
-                                }
-                            } else {
-                                healthKitEnabled = false
-                            }
-                        }
-                    )) {
-                        Label("Synchroniser avec Santé", systemImage: "heart.fill")
-                    }
-                    .tint(theme.color.accent)
-                    if healthKitEnabled {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                            Text("Connecté à Santé")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                } header: {
-                    Text("Apple Santé")
-                } footer: {
-                    if healthKitEnabled {
-                        Text("Nutrition (calories, macros, eau) et poids sont envoyés automatiquement dans l'app Santé à chaque ajout.")
-                            .font(.caption)
-                    } else if !HealthKitService.shared.isAvailable {
-                        Text("HealthKit n'est pas disponible. Vérifie que l'app Santé est bien installée sur ton iPhone.")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    } else {
-                        Text("Active cette option pour envoyer tes données de nutrition et de poids dans l'app Santé.")
-                            .font(.caption)
-                    }
-                }
-                .alert("Santé", isPresented: Binding(
-                    get: { healthKitError != nil },
-                    set: { if !$0 { healthKitError = nil } }
-                )) {
-                    Button("OK") {}
-                } message: {
-                    Text(healthKitError ?? "")
                 }
 
                 // MARK: - Notifications
@@ -340,13 +264,6 @@ struct SettingsView: View {
             .task {
                 await notifService.refreshAuthorizationStatus()
                 refreshLastBackupDisplay()
-                // Sync HealthKit toggle with actual iOS authorization status
-                if healthKitEnabled {
-                    HealthKitService.shared.refreshAuthorization()
-                    if !HealthKitService.shared.isAuthorized {
-                        healthKitEnabled = false
-                    }
-                }
             }
             .sheet(isPresented: $showBackupsList) {
                 BackupsListView()
