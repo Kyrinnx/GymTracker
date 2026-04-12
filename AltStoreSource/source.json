@@ -22,6 +22,14 @@
       "screenshotURLs": [],
       "versions": [
         {
+          "version": "1.8.0",
+          "date": "2026-04-12",
+          "localizedDescription": "Onboarding enrichi, suivi objectif, tutoriel guidé, body map IA",
+          "downloadURL": "https://github.com/Kyrinnx/GymTracker/releases/download/v1.8.0/GymTracker.ipa",
+          "size": 1756138,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "1.7.0",
           "date": "2026-04-12",
           "localizedDescription": "Suppression nutrition et HealthKit — app recentrée sur le suivi musculation",
