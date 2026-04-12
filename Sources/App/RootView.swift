@@ -15,11 +15,9 @@ struct RootView: View {
             }
         }
         .task {
-            // Run on cold launch
             AutoBackupService.runDailyBackupIfNeeded(context: context)
         }
         .onChange(of: scenePhase) { _, phase in
-            // Also run when the app comes back from background — covers users who never quit
             if phase == .active {
                 AutoBackupService.runDailyBackupIfNeeded(context: context)
             }

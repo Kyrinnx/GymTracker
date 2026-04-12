@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct OnboardingView: View {
     @Environment(ThemeManager.self) private var theme
@@ -11,6 +12,9 @@ struct OnboardingView: View {
     @State private var step: Int = 0
     @State private var weightInput: String = ""
     @State private var bfInput: String = ""
+    @State private var showFilePicker = false
+    @State private var restoreMessage: String?
+    @State private var isRestoring = false
 
     var body: some View {
         ZStack {
@@ -21,7 +25,7 @@ struct OnboardingView: View {
             VStack(spacing: 0) {
                 // Progress dots
                 HStack(spacing: 8) {
-                    ForEach(0..<3) { i in
+                    ForEach(0..<4) { i in
                         Circle()
                             .fill(i == step ? theme.color.accent : Color.secondary.opacity(0.3))
                             .frame(width: 8, height: 8)
@@ -34,7 +38,8 @@ struct OnboardingView: View {
                 Group {
                     switch step {
                     case 0: welcomeStep
-                    case 1: nameStep
+                    case 1: restoreStep
+                    case 2: nameStep
                     default: bodyStep
                     }
                 }
@@ -45,28 +50,60 @@ struct OnboardingView: View {
 
                 Spacer()
 
-                // Bottom button
-                Button {
-                    next()
-                } label: {
-                    HStack {
-                        Text(step == 2 ? "Commencer" : "Suivant")
-                            .fontWeight(.bold)
-                        Image(systemName: step == 2 ? "checkmark" : "arrow.right")
-                    }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(theme.color.gradient)
-                    .clipShape(RoundedRectangle(cornerRadius: 18))
-                }
-                .buttonStyle(.plain)
-                .disabled(step == 1 && userName.trimmingCharacters(in: .whitespaces).isEmpty)
-                .opacity(step == 1 && userName.trimmingCharacters(in: .whitespaces).isEmpty ? 0.5 : 1)
-                .padding(.horizontal, 32)
-                .padding(.bottom, 40)
+                // Bottom buttons
+                if step == 1 {
+                    // Restore step has its own buttons
+                    VStack(spacing: 12) {
+                        Button {
+                            showFilePicker = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "arrow.counterclockwise")
+                                Text("Restaurer une sauvegarde")
+                                    .fontWeight(.bold)
+                            }
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(theme.color.gradient)
+                            .clipShape(RoundedRectangle(cornerRadius: 18))
+                        }
+                        .buttonStyle(.plain)
 
-                if step > 0 {
+                        Button {
+                            withAnimation(.spring) { step += 1 }
+                        } label: {
+                            Text("Commencer à zéro")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(theme.color.accent)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 40)
+                } else {
+                    Button {
+                        next()
+                    } label: {
+                        HStack {
+                            Text(step == 3 ? "Commencer" : "Suivant")
+                                .fontWeight(.bold)
+                            Image(systemName: step == 3 ? "checkmark" : "arrow.right")
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(theme.color.gradient)
+                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(step == 2 && userName.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .opacity(step == 2 && userName.trimmingCharacters(in: .whitespaces).isEmpty ? 0.5 : 1)
+                    .padding(.horizontal, 32)
+                    .padding(.bottom, 40)
+                }
+
+                if step > 0 && step != 1 {
                     Button("Retour") {
                         withAnimation(.spring) { step -= 1 }
                     }
@@ -75,6 +112,21 @@ struct OnboardingView: View {
                     .padding(.bottom, 12)
                 }
             }
+        }
+        .fileImporter(
+            isPresented: $showFilePicker,
+            allowedContentTypes: [.json],
+            allowsMultipleSelection: false
+        ) { result in
+            handleRestore(result)
+        }
+        .alert("Restauration", isPresented: Binding(
+            get: { restoreMessage != nil },
+            set: { if !$0 { restoreMessage = nil } }
+        )) {
+            Button("OK") {}
+        } message: {
+            Text(restoreMessage ?? "")
         }
     }
 
@@ -94,6 +146,32 @@ struct OnboardingView: View {
                     .font(.body)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 32)
+    }
+
+    private var restoreStep: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "icloud.and.arrow.down.fill")
+                .font(.system(size: 70))
+                .foregroundStyle(theme.color.accent)
+
+            VStack(spacing: 12) {
+                Text("Tu as déjà des données ?")
+                    .font(.title2.bold())
+                    .multilineTextAlignment(.center)
+
+                Text("Si tu avais GymTracker avant, tu peux restaurer une sauvegarde depuis iCloud Drive ou tes fichiers.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 16)
+            }
+
+            if isRestoring {
+                ProgressView()
+                    .padding(.top, 8)
             }
         }
         .padding(.horizontal, 32)
@@ -189,7 +267,7 @@ struct OnboardingView: View {
     // MARK: - Logic
 
     private func next() {
-        if step < 2 {
+        if step < 3 {
             withAnimation(.spring) { step += 1 }
             return
         }
@@ -199,5 +277,24 @@ struct OnboardingView: View {
             context.insert(WeightEntry(kg: kg, bodyFat: bf))
         }
         withAnimation(.spring) { onboardingCompleted = true }
+    }
+
+    private func handleRestore(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            isRestoring = true
+            do {
+                try DataExportService.importAll(from: url, into: context, replaceAll: true)
+                restoreMessage = "Restauration réussie ! Toutes tes données sont de retour."
+                // Skip to end — data is restored, no need for name/weight steps
+                withAnimation(.spring) { onboardingCompleted = true }
+            } catch {
+                restoreMessage = "Échec de la restauration : \(error.localizedDescription)"
+            }
+            isRestoring = false
+        case .failure(let error):
+            restoreMessage = "Impossible de lire le fichier : \(error.localizedDescription)"
+        }
     }
 }
