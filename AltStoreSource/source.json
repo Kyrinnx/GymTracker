@@ -22,6 +22,14 @@
       "screenshotURLs": [],
       "versions": [
         {
+          "version": "1.2.0",
+          "date": "2026-04-12",
+          "localizedDescription": "Restauration de sauvegarde au premier lancement",
+          "downloadURL": "https://github.com/Kyrinnx/GymTracker/releases/download/v1.2.0/GymTracker.ipa",
+          "size": 2203657,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "1.1.0",
           "date": "2026-04-12",
           "localizedDescription": "HealthKit + amélioration sauvegardes iCloud",
