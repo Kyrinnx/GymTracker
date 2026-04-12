@@ -23,7 +23,14 @@ VERSION="$1"
 NOTES="${2:-Mise à jour $VERSION}"
 TAG="v$VERSION"
 
-# 1. Build the .ipa
+# 1. Update Info.plist version BEFORE building
+PLIST="Resources/Info.plist"
+if [[ -f "$PLIST" ]]; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$PLIST"
+    echo "→ Info.plist version set to $VERSION"
+fi
+
+# 2. Build the .ipa
 ./build-ipa.sh
 
 IPA_PATH="$(pwd)/build/GymTracker.ipa"
@@ -72,7 +79,7 @@ fi
 # 3. Commit & push if in a git repo
 if git rev-parse --git-dir >/dev/null 2>&1; then
     echo "→ Committing source.json bump..."
-    git add "$SOURCE" 2>/dev/null || true
+    git add "$SOURCE" "$PLIST" 2>/dev/null || true
     if ! git diff --cached --quiet; then
         git commit -m "Release $TAG" || true
         git push || echo "⚠️  Push failed — push manually later"
