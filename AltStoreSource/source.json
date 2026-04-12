@@ -1,19 +1,19 @@
 {
-  "name": "GymTracker — Quentin",
-  "subtitle": "Mon tracker de musculation perso",
-  "description": "Source AltStore privée pour la dernière version de GymTracker.",
+  "name": "GymTracker",
+  "subtitle": "Musculation, nutrition & jeûne",
+  "description": "Source AltStore pour la dernière version de GymTracker.",
   "iconURL": "https://raw.githubusercontent.com/Kyrinnx/GymTracker/main/AltStoreSource/icon.png",
   "headerURL": "https://raw.githubusercontent.com/Kyrinnx/GymTracker/main/AltStoreSource/header.png",
   "website": "https://github.com/Kyrinnx/GymTracker",
   "tintColor": "#FF6B35",
   "featuredApps": [
-    "com.quentin.gymtracker"
+    "com.gymtracker.app"
   ],
   "apps": [
     {
       "name": "GymTracker",
-      "bundleIdentifier": "com.quentin.gymtracker",
-      "developerName": "Quentin",
+      "bundleIdentifier": "com.gymtracker.app",
+      "developerName": "Kyrinnx",
       "subtitle": "Musculation, nutrition, jeûne intermittent",
       "localizedDescription": "Suis tes séances de musculation, ta nutrition, ton jeûne intermittent et ta progression. Tout en local, données 100% privées.",
       "iconURL": "https://raw.githubusercontent.com/Kyrinnx/GymTracker/main/AltStoreSource/icon.png",

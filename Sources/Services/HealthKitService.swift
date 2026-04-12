@@ -26,16 +26,40 @@ final class HealthKitService {
 
     // MARK: - Authorization
 
+    /// Requests HealthKit authorization and checks that at least one write type was granted.
     func requestAuthorization() async -> Bool {
         guard isAvailable else { return false }
         do {
             try await store.requestAuthorization(toShare: writeTypes, read: [])
-            isAuthorized = true
-            return true
+            // requestAuthorization doesn't throw when the user denies — check actual status
+            let authorized = checkWriteAuthorization()
+            isAuthorized = authorized
+            return authorized
         } catch {
             print("[HealthKit] Authorization failed: \(error)")
+            isAuthorized = false
             return false
         }
+    }
+
+    /// Checks if at least one write type is currently authorized. Call on app launch to sync state.
+    func refreshAuthorization() {
+        guard isAvailable else {
+            isAuthorized = false
+            return
+        }
+        isAuthorized = checkWriteAuthorization()
+    }
+
+    private func checkWriteAuthorization() -> Bool {
+        guard isAvailable else { return false }
+        // Check if at least one write type is authorized
+        for type in writeTypes {
+            if store.authorizationStatus(for: type) == .sharingAuthorized {
+                return true
+            }
+        }
+        return false
     }
 
     // MARK: - Nutrition

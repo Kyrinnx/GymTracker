@@ -1,6 +1,6 @@
 name: GymTracker
 options:
-  bundleIdPrefix: com.quentin.gymtracker
+  bundleIdPrefix: com.gymtracker.app
   deploymentTarget:
     iOS: "17.0"
   xcodeVersion: "16"
@@ -27,7 +27,7 @@ targets:
         com.apple.developer.healthkit.access: []
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.quentin.gymtracker
+        PRODUCT_BUNDLE_IDENTIFIER: com.gymtracker.app
         INFOPLIST_FILE: Resources/Info.plist
 schemes:
   GymTracker:
