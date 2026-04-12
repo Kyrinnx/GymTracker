@@ -163,52 +163,34 @@ struct HomeView: View {
                         .padding(.horizontal)
                     }
 
-                    // Built-in Templates
-                    VStack(alignment: .leading, spacing: 12) {
+                    // Bibliothèque link
+                    NavigationLink {
+                        ProgramLibraryView()
+                    } label: {
                         HStack {
-                            Text("PROGRAMMES")
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .tracking(2.5)
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            NavigationLink {
-                                TemplateListView()
-                            } label: {
-                                Text("Modifier")
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(theme.color.accent)
-                            }
-                        }
-                        .padding(.horizontal)
-
-                        ForEach(WorkoutTemplate.grouped, id: \.category) { group in
-                            Text(group.category)
-                                .font(.caption2)
-                                .fontWeight(.bold)
+                            Image(systemName: "books.vertical.fill")
+                                .font(.title3)
                                 .foregroundStyle(theme.color.accent)
-                                .padding(.horizontal)
-                                .padding(.top, group.category == WorkoutTemplate.categories.first ? 0 : 4)
-
-                            LazyVGrid(columns: [.init(), .init()], spacing: 12) {
-                                ForEach(group.templates) { tpl in
-                                    TemplateCard(template: tpl)
-                                        .onTapGesture {
-                                            startSession(from: tpl)
-                                        }
-                                        .contextMenu {
-                                            Button {
-                                                duplicateAsCustom(tpl)
-                                            } label: {
-                                                Label("Ajouter à mes séances", systemImage: "plus.square.on.square")
-                                            }
-                                        }
-                                }
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Bibliothèque de programmes")
+                                    .font(.subheadline)
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(.primary)
+                                Text("\(WorkoutTemplate.all.count) programmes prêts à l'emploi")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
-                            .padding(.horizontal)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
                         }
+                        .padding(16)
+                        .background(.regularMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
                     }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal)
 
                     // Last session
                     if let last = sessions.first {
@@ -664,6 +646,109 @@ struct CustomTemplateCard: View {
 
 // MARK: - AI Import Sheet
 
+// MARK: - Program Library
+
+struct ProgramLibraryView: View {
+    @Environment(ThemeManager.self) private var theme
+    @Environment(\.modelContext) private var context
+    @Query(sort: \CustomTemplate.order) private var customTemplates: [CustomTemplate]
+
+    @State private var addedMessage: String?
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                ForEach(WorkoutTemplate.grouped, id: \.category) { group in
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(group.category.uppercased())
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .tracking(2)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal)
+
+                        ForEach(group.templates) { tpl in
+                            libraryRow(tpl)
+                        }
+                    }
+                }
+            }
+            .padding(.vertical)
+        }
+        .navigationTitle("Bibliothèque")
+        .navigationBarTitleDisplayMode(.inline)
+        .alert("Ajouté", isPresented: Binding(
+            get: { addedMessage != nil },
+            set: { if !$0 { addedMessage = nil } }
+        )) {
+            Button("OK") {}
+        } message: {
+            Text(addedMessage ?? "")
+        }
+    }
+
+    private func libraryRow(_ tpl: WorkoutTemplate) -> some View {
+        HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(tpl.name)
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                Text(tpl.subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    let groups = Array(Set(tpl.exercises.map(\.group)))
+                    ForEach(groups) { g in
+                        Image(systemName: g.icon)
+                            .font(.caption2)
+                            .foregroundStyle(theme.color.accent)
+                    }
+                    Text("·")
+                        .foregroundStyle(.tertiary)
+                    Text("\(tpl.exercises.count) exos")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            Spacer()
+            Button {
+                addToMyPrograms(tpl)
+            } label: {
+                Image(systemName: "plus.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(theme.color.accent)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(14)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(.horizontal)
+    }
+
+    private func addToMyPrograms(_ template: WorkoutTemplate) {
+        let nextOrder = (customTemplates.map(\.order).max() ?? -1) + 1
+        let custom = CustomTemplate(name: template.name, subtitle: template.subtitle, order: nextOrder)
+        context.insert(custom)
+        for (i, ex) in template.exercises.enumerated() {
+            let cex = CustomTemplateExercise(
+                name: ex.name,
+                muscleGroup: ex.group,
+                scheme: ex.scheme,
+                restSeconds: 90,
+                defaultSets: ex.defaultSets.count,
+                defaultReps: ex.defaultSets.first?.reps ?? 10,
+                order: i
+            )
+            if custom.exercises == nil { custom.exercises = [] }
+            custom.exercises?.append(cex)
+        }
+        addedMessage = "\"\(template.name)\" ajouté à tes séances ! Tu peux le modifier depuis l'accueil."
+    }
+}
+
+// MARK: - AI Import Sheet
+
 private struct AIImportSheet: View {
     @Environment(ThemeManager.self) private var theme
     @Environment(\.modelContext) private var context
@@ -682,14 +767,13 @@ private struct AIImportSheet: View {
         return """
         Crée-moi un programme de musculation : \(placeholder).
 
-        Réponds UNIQUEMENT avec du JSON valide, sans texte avant ni après, dans ce format exact :
-        {
-          "name": "Nom du programme",
-          "subtitle": "Description courte",
-          "exercises": [
-            {"name": "Nom exercice", "muscle": "chest", "sets": 4, "reps": 10, "rest": 90}
-          ]
-        }
+        Réponds UNIQUEMENT avec du JSON valide, sans texte avant ni après.
+
+        Si c'est UNE seule séance :
+        {"name": "Nom", "subtitle": "Description", "exercises": [{"name": "Nom exercice", "muscle": "chest", "sets": 4, "reps": 10, "rest": 90}]}
+
+        Si c'est PLUSIEURS séances (programme complet) :
+        [{"name": "Séance 1", "subtitle": "...", "exercises": [...]}, {"name": "Séance 2", "subtitle": "...", "exercises": [...]}]
 
         Valeurs possibles pour "muscle" : chest, back, shoulders, arms, legs, core.
         "rest" est en secondes (30, 45, 60, 90, 120, 150, 180).
@@ -843,49 +927,74 @@ private struct AIImportSheet: View {
         guard !trimmed.isEmpty else { return }
 
         guard let data = trimmed.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+              let parsed = try? JSONSerialization.jsonObject(with: data) else {
             isError = true
             resultMessage = "JSON invalide. Vérifie que tu as bien copié toute la réponse de l'IA, sans texte avant ni après."
             return
         }
 
-        let name = json["name"] as? String ?? "Programme importé"
-        let subtitle = json["subtitle"] as? String ?? ""
-
-        guard let exercisesJSON = json["exercises"] as? [[String: Any]], !exercisesJSON.isEmpty else {
+        // Support both single object and array of objects
+        let sessions: [[String: Any]]
+        if let array = parsed as? [[String: Any]] {
+            sessions = array
+        } else if let single = parsed as? [String: Any] {
+            sessions = [single]
+        } else {
             isError = true
-            resultMessage = "Aucun exercice trouvé dans le JSON. Le champ \"exercises\" est manquant ou vide."
+            resultMessage = "Format JSON non reconnu. Attendu : un objet ou un tableau d'objets."
+            return
+        }
+
+        guard !sessions.isEmpty else {
+            isError = true
+            resultMessage = "Aucune séance trouvée dans le JSON."
             return
         }
 
         let validMuscles = Set(MuscleGroup.allCases.map(\.rawValue))
-        let nextTemplateOrder = (try? context.fetchCount(FetchDescriptor<CustomTemplate>())) ?? 0
+        let baseOrder = (try? context.fetchCount(FetchDescriptor<CustomTemplate>())) ?? 0
+        var totalExercises = 0
 
-        let template = CustomTemplate(name: name, subtitle: subtitle, order: nextTemplateOrder)
-        context.insert(template)
+        for (sessionIndex, json) in sessions.enumerated() {
+            let name = json["name"] as? String ?? "Séance \(sessionIndex + 1)"
+            let subtitle = json["subtitle"] as? String ?? ""
 
-        for (index, exJSON) in exercisesJSON.enumerated() {
-            let exName = exJSON["name"] as? String ?? "Exercice \(index + 1)"
-            let muscleRaw = exJSON["muscle"] as? String ?? "chest"
-            let muscleGroup = validMuscles.contains(muscleRaw) ? MuscleGroup(rawValue: muscleRaw)! : .chest
-            let sets = exJSON["sets"] as? Int ?? 3
-            let reps = exJSON["reps"] as? Int ?? 10
-            let rest = exJSON["rest"] as? Int ?? 90
+            guard let exercisesJSON = json["exercises"] as? [[String: Any]], !exercisesJSON.isEmpty else {
+                continue
+            }
 
-            let exercise = CustomTemplateExercise(
-                name: exName,
-                muscleGroup: muscleGroup,
-                scheme: "\(sets)x\(reps)",
-                restSeconds: rest,
-                defaultSets: sets,
-                defaultReps: reps,
-                order: index
-            )
-            if template.exercises == nil { template.exercises = [] }
-            template.exercises?.append(exercise)
+            let template = CustomTemplate(name: name, subtitle: subtitle, order: baseOrder + sessionIndex)
+            context.insert(template)
+
+            for (index, exJSON) in exercisesJSON.enumerated() {
+                let exName = exJSON["name"] as? String ?? "Exercice \(index + 1)"
+                let muscleRaw = exJSON["muscle"] as? String ?? "chest"
+                let muscleGroup = validMuscles.contains(muscleRaw) ? MuscleGroup(rawValue: muscleRaw)! : .chest
+                let sets = exJSON["sets"] as? Int ?? 3
+                let reps = exJSON["reps"] as? Int ?? 10
+                let rest = exJSON["rest"] as? Int ?? 90
+
+                let exercise = CustomTemplateExercise(
+                    name: exName,
+                    muscleGroup: muscleGroup,
+                    scheme: "\(sets)x\(reps)",
+                    restSeconds: rest,
+                    defaultSets: sets,
+                    defaultReps: reps,
+                    order: index
+                )
+                if template.exercises == nil { template.exercises = [] }
+                template.exercises?.append(exercise)
+            }
+            totalExercises += exercisesJSON.count
         }
 
+        if sessions.count == 1 {
+            let name = sessions[0]["name"] as? String ?? "Programme importé"
+            resultMessage = "\"\(name)\" importé avec \(totalExercises) exercices !"
+        } else {
+            resultMessage = "\(sessions.count) séances importées avec \(totalExercises) exercices au total !"
+        }
         isError = false
-        resultMessage = "\"\(name)\" importé avec \(exercisesJSON.count) exercices !"
     }
 }
