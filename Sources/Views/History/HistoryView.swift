@@ -55,7 +55,7 @@ struct HistoryView: View {
                         .padding(.horizontal)
                     }
                 }
-                .padding(.bottom, 20)
+                .padding(.bottom, 80)
             }
             .navigationTitle("Historique")
         }
