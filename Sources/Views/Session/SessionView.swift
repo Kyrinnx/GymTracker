@@ -16,12 +16,18 @@ struct SessionView: View {
     @State private var elapsedSeconds: Int = 0
     @State private var timer: Timer?
 
-    // Rest timer
+    // Pause
+    @State private var isPaused = false
+    @State private var pauseStart: Date?
+    @State private var totalPausedSeconds: TimeInterval = 0
+
+    // Rest timer (date-based for background support)
     @State private var restDuration: Int = 90
     @State private var activeRestDuration: Int = 90
     @State private var restRemaining: Int = 0
     @State private var restTimer: Timer?
     @State private var showRestOverlay = false
+    @State private var restEndDate: Date?
 
     // XP
     @State private var xpBreakdown: XPBreakdown?
@@ -34,13 +40,27 @@ struct SessionView: View {
     @State private var showFinishConfirm = false
     @State private var showSaveAsTemplate = false
 
+    // Edit exercise
+    @State private var editingExercise: ExerciseEntry?
+    @State private var editedName: String = ""
+    @State private var showRenameAlert = false
+
     @Query(sort: \CustomTemplate.order) private var customTemplates: [CustomTemplate]
 
     private var elapsedMinutes: Int { elapsedSeconds / 60 }
     private var estimatedCalories: Int { elapsedMinutes * 7 }
 
     private var sortedExercises: [ExerciseEntry] {
-        session.exercisesArray.sorted { $0.order < $1.order }
+        let sorted = session.exercisesArray.sorted { $0.order < $1.order }
+        // Move completed exercises to bottom
+        let incomplete = sorted.filter { !isExerciseComplete($0) }
+        let complete = sorted.filter { isExerciseComplete($0) }
+        return incomplete + complete
+    }
+
+    private func isExerciseComplete(_ exercise: ExerciseEntry) -> Bool {
+        let sets = exercise.setsArray
+        return !sets.isEmpty && sets.allSatisfy(\.done)
     }
 
     var body: some View {
@@ -55,6 +75,26 @@ struct SessionView: View {
         }
         .onAppear(perform: startElapsedTimer)
         .onDisappear(perform: stopAllTimers)
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            // Restore rest timer from background
+            if let endDate = restEndDate {
+                let remaining = Int(endDate.timeIntervalSinceNow)
+                if remaining > 0 {
+                    restRemaining = remaining
+                } else {
+                    dismissRest()
+                }
+            }
+        }
+        .alert("Renommer l'exercice", isPresented: $showRenameAlert) {
+            TextField("Nom", text: $editedName)
+            Button("Annuler", role: .cancel) {}
+            Button("OK") {
+                if let ex = editingExercise, !editedName.isEmpty {
+                    ex.name = editedName
+                }
+            }
+        }
         .sheet(isPresented: $showExercisePicker) {
             ExercisePickerView { name, group in
                 addExercise(name: name, group: group)
@@ -102,6 +142,7 @@ struct SessionView: View {
                 }
                 .padding(.bottom, 20)
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle(session.templateName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -128,15 +169,28 @@ struct SessionView: View {
         VStack(spacing: 12) {
             HStack(spacing: 20) {
                 VStack(spacing: 2) {
-                    Text(formattedElapsed)
-                        .font(.title2)
-                        .fontWeight(.black)
-                        .monospacedDigit()
-                    Text("DURÉE")
+                    HStack(spacing: 6) {
+                        Text(formattedElapsed)
+                            .font(.title2)
+                            .fontWeight(.black)
+                            .monospacedDigit()
+                        Button {
+                            togglePause()
+                        } label: {
+                            Image(systemName: isPaused ? "play.fill" : "pause.fill")
+                                .font(.caption)
+                                .foregroundStyle(isPaused ? .green : .secondary)
+                                .frame(width: 28, height: 28)
+                                .background(isPaused ? Color.green.opacity(0.15) : Color(.systemGray5))
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Text(isPaused ? "EN PAUSE" : "DURÉE")
                         .font(.caption2)
                         .fontWeight(.bold)
                         .tracking(1)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(isPaused ? .orange : .secondary)
                 }
                 Spacer()
                 VStack(spacing: 2) {
@@ -162,7 +216,6 @@ struct SessionView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-
         }
         .padding(18)
         .background(.regularMaterial)
@@ -215,10 +268,33 @@ struct SessionView: View {
                 }
                 Spacer()
                 Menu {
+                    Button {
+                        editingExercise = exercise
+                        editedName = exercise.name
+                        showRenameAlert = true
+                    } label: {
+                        Label("Renommer", systemImage: "pencil")
+                    }
+                    if exercise.order > 0 {
+                        Button {
+                            moveExercise(exercise, direction: -1)
+                        } label: {
+                            Label("Monter", systemImage: "arrow.up")
+                        }
+                    }
+                    let maxOrder = session.exercisesArray.map(\.order).max() ?? 0
+                    if exercise.order < maxOrder {
+                        Button {
+                            moveExercise(exercise, direction: 1)
+                        } label: {
+                            Label("Descendre", systemImage: "arrow.down")
+                        }
+                    }
+                    Divider()
                     Button(role: .destructive) {
                         deleteExercise(exercise)
                     } label: {
-                        Label("Supprimer l'exercice", systemImage: "trash")
+                        Label("Supprimer", systemImage: "trash")
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -281,6 +357,13 @@ struct SessionView: View {
             let sortedSets = exercise.setsArray.sorted { $0.order < $1.order }
             ForEach(sortedSets) { set in
                 setRow(set: set, exercise: exercise)
+                    .contextMenu {
+                        Button(role: .destructive) {
+                            deleteSet(set, from: exercise)
+                        } label: {
+                            Label("Supprimer la série", systemImage: "trash")
+                        }
+                    }
             }
 
             // Add set button
@@ -300,6 +383,21 @@ struct SessionView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
             .buttonStyle(.plain)
+
+            // Undo completed: tap to unmark all sets
+            if isExerciseComplete(exercise) {
+                Button {
+                    for s in exercise.setsArray { s.done = false }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.uturn.backward")
+                        Text("Remettre l'exercice")
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(16)
         .background(.regularMaterial)
@@ -308,6 +406,7 @@ struct SessionView: View {
             RoundedRectangle(cornerRadius: 20)
                 .strokeBorder(.quaternary, lineWidth: 0.5)
         )
+        .opacity(isExerciseComplete(exercise) ? 0.5 : 1.0)
     }
 
     private func setRow(set: WorkoutSet, exercise: ExerciseEntry) -> some View {
@@ -318,10 +417,10 @@ struct SessionView: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 44, alignment: .leading)
 
-            kgField(set: set)
+            kgField(set: set, exercise: exercise)
                 .frame(maxWidth: .infinity)
 
-            repsField(set: set)
+            repsField(set: set, exercise: exercise)
                 .frame(maxWidth: .infinity)
 
             Button {
@@ -337,12 +436,24 @@ struct SessionView: View {
         .padding(.vertical, 2)
     }
 
-    private func kgField(set: WorkoutSet) -> some View {
-        HStack(spacing: 4) {
-            TextField("0", value: Binding(
-                get: { set.kg },
-                set: { set.kg = $0 }
-            ), format: .number)
+    @State private var kgTexts: [PersistentIdentifier: [Int: String]] = [:]
+    @State private var repsTexts: [PersistentIdentifier: [Int: String]] = [:]
+
+    private func kgField(set: WorkoutSet, exercise: ExerciseEntry) -> some View {
+        let binding = Binding<String>(
+            get: {
+                kgTexts[exercise.persistentModelID]?[set.order] ?? (set.kg > 0 ? formatKg(set.kg) : "")
+            },
+            set: { newVal in
+                kgTexts[exercise.persistentModelID, default: [:]][set.order] = newVal
+                if let val = Double(newVal.replacingOccurrences(of: ",", with: ".")) {
+                    set.kg = val
+                } else if newVal.isEmpty {
+                    set.kg = 0
+                }
+            }
+        )
+        return TextField("0", text: binding)
             .keyboardType(.decimalPad)
             .multilineTextAlignment(.center)
             .font(.subheadline)
@@ -351,15 +462,23 @@ struct SessionView: View {
             .padding(.vertical, 6)
             .background(.ultraThinMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 10))
-        }
     }
 
-    private func repsField(set: WorkoutSet) -> some View {
-        HStack(spacing: 4) {
-            TextField("0", value: Binding(
-                get: { set.reps },
-                set: { set.reps = $0 }
-            ), format: .number)
+    private func repsField(set: WorkoutSet, exercise: ExerciseEntry) -> some View {
+        let binding = Binding<String>(
+            get: {
+                repsTexts[exercise.persistentModelID]?[set.order] ?? (set.reps > 0 ? "\(set.reps)" : "")
+            },
+            set: { newVal in
+                repsTexts[exercise.persistentModelID, default: [:]][set.order] = newVal
+                if let val = Int(newVal) {
+                    set.reps = val
+                } else if newVal.isEmpty {
+                    set.reps = 0
+                }
+            }
+        )
+        return TextField("0", text: binding)
             .keyboardType(.numberPad)
             .multilineTextAlignment(.center)
             .font(.subheadline)
@@ -368,7 +487,10 @@ struct SessionView: View {
             .padding(.vertical, 6)
             .background(.ultraThinMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 10))
-        }
+    }
+
+    private func formatKg(_ kg: Double) -> String {
+        kg.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(kg))" : String(format: "%.1f", kg)
     }
 
     // MARK: - Add Exercise Button
@@ -473,11 +595,37 @@ struct SessionView: View {
         updateElapsed()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             updateElapsed()
+            // Also update rest timer from date if running
+            if let endDate = restEndDate {
+                let remaining = Int(endDate.timeIntervalSinceNow)
+                if remaining > 0 {
+                    restRemaining = remaining
+                } else if showRestOverlay {
+                    dismissRest()
+                }
+            }
         }
     }
 
     private func updateElapsed() {
-        elapsedSeconds = Int(Date().timeIntervalSince(session.started))
+        guard !isPaused else { return }
+        let total = Date().timeIntervalSince(session.started) - totalPausedSeconds
+        elapsedSeconds = max(0, Int(total))
+    }
+
+    private func togglePause() {
+        if isPaused {
+            // Resume
+            if let start = pauseStart {
+                totalPausedSeconds += Date().timeIntervalSince(start)
+            }
+            pauseStart = nil
+            isPaused = false
+        } else {
+            // Pause
+            pauseStart = Date()
+            isPaused = true
+        }
     }
 
     private func stopAllTimers() {
@@ -498,19 +646,15 @@ struct SessionView: View {
         restTimer?.invalidate()
         activeRestDuration = duration ?? restDuration
         restRemaining = activeRestDuration
+        restEndDate = Date().addingTimeInterval(Double(activeRestDuration))
         showRestOverlay = true
-        restTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            if restRemaining > 0 {
-                restRemaining -= 1
-            } else {
-                dismissRest()
-            }
-        }
+        // Timer is now driven by restEndDate in the main timer loop
     }
 
     private func dismissRest() {
         restTimer?.invalidate()
         restTimer = nil
+        restEndDate = nil
         showRestOverlay = false
     }
 
@@ -521,18 +665,35 @@ struct SessionView: View {
         exercise.sets?.append(newSet)
     }
 
+    private func deleteSet(_ set: WorkoutSet, from exercise: ExerciseEntry) {
+        exercise.sets?.removeAll { $0 === set }
+        // Re-pack orders
+        for (i, s) in exercise.setsArray.sorted(by: { $0.order < $1.order }).enumerated() {
+            s.order = i
+        }
+    }
+
     private func deleteExercise(_ exercise: ExerciseEntry) {
         session.exercises?.removeAll { $0 === exercise }
-        // Re-pack orders
         for (i, ex) in session.exercisesArray.sorted(by: { $0.order < $1.order }).enumerated() {
             ex.order = i
         }
     }
 
+    private func moveExercise(_ exercise: ExerciseEntry, direction: Int) {
+        let sorted = session.exercisesArray.sorted { $0.order < $1.order }
+        guard let idx = sorted.firstIndex(where: { $0 === exercise }) else { return }
+        let newIdx = idx + direction
+        guard newIdx >= 0, newIdx < sorted.count else { return }
+        // Swap orders
+        let temp = sorted[idx].order
+        sorted[idx].order = sorted[newIdx].order
+        sorted[newIdx].order = temp
+    }
+
     private func addExercise(name: String, group: MuscleGroup) {
         let nextOrder = (session.exercisesArray.map(\.order).max() ?? -1) + 1
         let entry = ExerciseEntry(name: name, muscleGroup: group, scheme: "", order: nextOrder)
-        // Add 3 default empty sets
         for i in 0..<3 {
             if entry.sets == nil { entry.sets = [] }
             entry.sets?.append(WorkoutSet(kg: 0, reps: 0, done: false, order: i))
@@ -551,7 +712,7 @@ struct SessionView: View {
         }
 
         // Streak & weekly count for XP bonuses
-        let streak = StreakCalculator.currentStreak(sessions: Array(allSessions))
+        let streak = StreakCalculator.currentStreak(sessions: Array(allSessions), weeklyGoal: weeklyGoal)
         let weekStart = Calendar.current.date(byAdding: .day, value: -7, to: Date())!
         let weekCount = allSessions.filter { $0.finished != nil && $0.started > weekStart }.count
 

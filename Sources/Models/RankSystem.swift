@@ -4,13 +4,13 @@ import SwiftUI
 
 enum Rank: Int, CaseIterable {
     case debutant = 0
-    case habitue = 500
-    case confirme = 1500
-    case avance = 3000
-    case elite = 5000
-    case legende = 8000
-    case titan = 12000
-    case mythique = 20000
+    case habitue = 1000
+    case confirme = 3000
+    case avance = 6000
+    case elite = 12000
+    case legende = 25000
+    case titan = 50000
+    case mythique = 100000
 
     var label: String {
         switch self {
@@ -103,7 +103,7 @@ struct XPBreakdown {
         if weightBonus > 0 { items.append(("Poids augmenté", weightBonus, "arrow.up.right")) }
         if repsBonus > 0 { items.append(("Reps augmentées", repsBonus, "plus.circle.fill")) }
         if prBonus > 0 { items.append(("Nouveau PR", prBonus, "trophy.fill")) }
-        if streakBonus > 0 { items.append(("Streak", streakBonus, "flame.fill")) }
+        if streakBonus > 0 { items.append(("Streak semaine", streakBonus, "flame.fill")) }
         if goalBonus > 0 { items.append(("Objectif atteint", goalBonus, "target")) }
         return items
     }
@@ -132,22 +132,22 @@ struct XPCalculator {
         let totalVolume = doneSets.reduce(0.0) { $0 + $1.kg * Double($1.reps) }
         let durationMin = session.durationMinutes
 
-        // 1. Base: 100 XP
-        b.base = 100
+        // 1. Base: 50 XP par séance
+        b.base = 50
 
-        // 2. Exercices complétés: 15 XP par exo
-        b.exerciseBonus = doneExercises.count * 15
+        // 2. Exercices complétés: 10 XP par exo
+        b.exerciseBonus = doneExercises.count * 10
 
-        // 3. Séries validées: 5 XP par série
-        b.setsBonus = doneSets.count * 5
+        // 3. Séries validées: 3 XP par série
+        b.setsBonus = doneSets.count * 3
 
-        // 4. Volume: 1 XP par tranche de 200 kg soulevés
+        // 4. Volume: 1 XP par tranche de 500 kg soulevés
         if totalVolume > 0 {
-            b.volumeBonus = max(1, Int(totalVolume / 200))
+            b.volumeBonus = max(1, Int(totalVolume / 500))
         }
 
-        // 5. Durée: 1 XP par minute (min 15, max 60 pour éviter l'abus)
-        b.durationBonus = min(60, max(0, durationMin))
+        // 5. Durée: 1 XP par 2 minutes (max 30)
+        b.durationBonus = min(30, max(0, durationMin / 2))
 
         // 6. Progression vs séance précédente
         if let prev = previousSession {
@@ -160,70 +160,90 @@ struct XPCalculator {
                     let prevBestReps = prevEx.setsArray.filter { $0.done }.map(\.reps).max() ?? 0
 
                     if bestKg > prevBestKg && prevBestKg > 0 {
-                        b.weightBonus += 50
+                        b.weightBonus += 25
                     }
                     if bestReps > prevBestReps && prevBestReps > 0 {
-                        b.repsBonus += 30
+                        b.repsBonus += 15
                     }
                 }
 
                 // 7. PR
                 if let info = exerciseInfos.first(where: { $0.name == exercise.name }) {
                     if bestKg > info.personalRecord && bestKg > 0 {
-                        b.prBonus += 100
+                        b.prBonus += 50
                     }
                 }
             }
         }
 
-        // 8. Streak: 10 XP * jours consécutifs (plafonné à 70)
+        // 8. Streak semaines : 15 XP par semaine consécutive d'objectif atteint (max 60)
         if currentStreak > 0 {
-            b.streakBonus = min(70, currentStreak * 10)
+            b.streakBonus = min(60, currentStreak * 15)
         }
 
         // 9. Objectif semaine atteint avec cette séance
         if weekSessionCount + 1 >= weeklyGoal {
-            b.goalBonus = 200
+            b.goalBonus = 100
         }
 
         return b
     }
 }
 
-// MARK: - Streak Calculator
+// MARK: - Streak Calculator (weekly goal based)
 
 struct StreakCalculator {
-    static func currentStreak(sessions: [WorkoutSession]) -> Int {
+    /// Counts consecutive weeks where the weekly session goal was met.
+    static func currentStreak(sessions: [WorkoutSession], weeklyGoal: Int = 4) -> Int {
         let calendar = Calendar.current
-        let finishedDates = sessions
-            .compactMap(\.finished)
-            .map { calendar.startOfDay(for: $0) }
-        let uniqueDays = Set(finishedDates).sorted(by: >)
+        let finishedDates = sessions.compactMap(\.finished)
+        guard !finishedDates.isEmpty else { return 0 }
 
-        guard let mostRecent = uniqueDays.first else { return 0 }
+        // Group sessions by ISO week
+        var weekCounts: [Int: Int] = [:]  // weekOfYear*100+year -> count
+        for date in finishedDates {
+            let comps = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
+            let key = (comps.yearForWeekOfYear ?? 0) * 100 + (comps.weekOfYear ?? 0)
+            weekCounts[key, default: 0] += 1
+        }
 
-        let today = calendar.startOfDay(for: Date())
-        let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
+        // Get current week
+        let todayComps = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())
+        var checkYear = todayComps.yearForWeekOfYear ?? 0
+        var checkWeek = todayComps.weekOfYear ?? 0
 
-        // Streak only counts if last session was today or yesterday
-        guard mostRecent >= yesterday else { return 0 }
+        var streak = 0
+        // Check current week first - only count if goal already met
+        let currentKey = checkYear * 100 + checkWeek
+        if (weekCounts[currentKey] ?? 0) >= weeklyGoal {
+            streak = 1
+        }
 
-        var streak = 1
-        for i in 1..<uniqueDays.count {
-            let expected = calendar.date(byAdding: .day, value: -i, to: mostRecent)!
-            if uniqueDays[i] == expected {
+        // Go back through previous weeks
+        for _ in 0..<52 {
+            // Move to previous week
+            if let prevWeekDate = calendar.date(byAdding: .weekOfYear, value: -(streak == 0 ? 1 : streak), to: Date()) {
+                let prevComps = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: prevWeekDate)
+                checkYear = prevComps.yearForWeekOfYear ?? 0
+                checkWeek = prevComps.weekOfYear ?? 0
+            } else {
+                break
+            }
+            let key = checkYear * 100 + checkWeek
+            if (weekCounts[key] ?? 0) >= weeklyGoal {
                 streak += 1
             } else {
                 break
             }
         }
+
         return streak
     }
 
+    /// Days in the current week that have sessions (Mon=0 to Sun=6).
     static func weekDays(sessions: [WorkoutSession]) -> [Bool] {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        // Monday = 0
         let weekday = (calendar.component(.weekday, from: today) + 5) % 7
         let monday = calendar.date(byAdding: .day, value: -weekday, to: today)!
 
