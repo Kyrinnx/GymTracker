@@ -22,6 +22,14 @@
       "screenshotURLs": [],
       "versions": [
         {
+          "version": "1.11.3",
+          "date": "2026-04-13",
+          "localizedDescription": "Drag preview arrondi pour le réordonnement des exercices",
+          "downloadURL": "https://github.com/Kyrinnx/GymTracker/releases/download/v1.11.3/GymTracker.ipa",
+          "size": 15047917,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "1.11.2",
           "date": "2026-04-13",
           "localizedDescription": "Fix exercice grisé après drag",
