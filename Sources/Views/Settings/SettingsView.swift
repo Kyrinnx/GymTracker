@@ -301,6 +301,11 @@ struct SettingsView: View {
                         Text("SwiftUI + Claude").foregroundStyle(.secondary)
                     }
                 }
+
+                // Spacer for tab bar
+                Section {} footer: {
+                    Spacer().frame(height: 40)
+                }
             }
             .navigationTitle("Réglages")
             .task {

@@ -33,7 +33,7 @@ struct XPView: View {
                     // All ranks
                     allRanksSection
                 }
-                .padding(.bottom, 20)
+                .padding(.bottom, 80)
             }
             .navigationTitle("Progression")
         }
@@ -288,13 +288,22 @@ struct XPView: View {
 
             VStack(spacing: 0) {
                 ForEach(Rank.allCases, id: \.self) { r in
+                    let isHighTier = [Rank.elite, .legende, .titan, .mythique].contains(r)
                     HStack(spacing: 14) {
-                        Image(systemName: r.icon)
-                            .font(.body)
-                            .foregroundStyle(r == rank ? r.color : .secondary)
-                            .frame(width: 34, height: 34)
-                            .background(r == rank ? r.color.opacity(0.15) : Color(.systemGray6))
-                            .clipShape(Circle())
+                        if isHighTier {
+                            GIFView(name: r.mascot)
+                                .frame(width: 38, height: 38)
+                                .clipped()
+                                .clipShape(Circle())
+                                .opacity(totalXP >= r.xpRequired ? 1.0 : 0.35)
+                        } else {
+                            Image(systemName: r.icon)
+                                .font(.body)
+                                .foregroundStyle(r == rank ? r.color : .secondary)
+                                .frame(width: 38, height: 38)
+                                .background(r == rank ? r.color.opacity(0.15) : Color(.systemGray6))
+                                .clipShape(Circle())
+                        }
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(r.label)

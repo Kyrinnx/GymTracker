@@ -81,6 +81,10 @@ struct RecordsView: View {
                     if weights.count >= 2 {
                         weightChart
                     }
+                    if weights.contains(where: { $0.bodyFat != nil }),
+                       weights.filter({ $0.bodyFat != nil }).count >= 2 {
+                        bfChart
+                    }
                     Text("RECORDS PERSONNELS")
                         .font(.caption)
                         .fontWeight(.bold)
@@ -95,7 +99,7 @@ struct RecordsView: View {
                         emptyState
                     }
                 }
-                .padding(.bottom, 20)
+                .padding(.bottom, 80)
             }
             .navigationTitle("Stats")
             .sheet(item: Binding(
@@ -491,7 +495,8 @@ struct RecordsView: View {
             Text("Évolution du poids")
                 .font(.subheadline)
                 .fontWeight(.bold)
-            Chart(weights.suffix(30).reversed()) { w in
+            let data = Array(weights.suffix(30).reversed())
+            Chart(data) { w in
                 AreaMark(x: .value("Date", w.date), y: .value("Kg", w.kg))
                     .foregroundStyle(theme.color.accent.opacity(0.15).gradient)
                 LineMark(x: .value("Date", w.date), y: .value("Kg", w.kg))
@@ -503,6 +508,31 @@ struct RecordsView: View {
             }
             .chartYScale(domain: .automatic(includesZero: false))
             .frame(height: 180)
+        }
+        .padding(18)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .padding(.horizontal)
+    }
+
+    private var bfChart: some View {
+        let bfWeights = weights.suffix(30).reversed().filter { $0.bodyFat != nil }
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("Évolution du body fat")
+                .font(.subheadline)
+                .fontWeight(.bold)
+            Chart(Array(bfWeights)) { w in
+                AreaMark(x: .value("Date", w.date), y: .value("BF", w.bodyFat ?? 0))
+                    .foregroundStyle(.orange.opacity(0.15).gradient)
+                LineMark(x: .value("Date", w.date), y: .value("BF", w.bodyFat ?? 0))
+                    .foregroundStyle(.orange)
+                    .lineStyle(StrokeStyle(lineWidth: 2.5))
+                PointMark(x: .value("Date", w.date), y: .value("BF", w.bodyFat ?? 0))
+                    .foregroundStyle(.orange)
+                    .symbolSize(30)
+            }
+            .chartYScale(domain: .automatic(includesZero: false))
+            .frame(height: 160)
         }
         .padding(18)
         .background(.regularMaterial)

@@ -233,7 +233,7 @@ struct HomeView: View {
                     }
                 }
                 .padding(.top, 12)
-                .padding(.bottom, 20)
+                .padding(.bottom, 80)
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
