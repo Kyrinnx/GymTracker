@@ -22,6 +22,14 @@
       "screenshotURLs": [],
       "versions": [
         {
+          "version": "1.9.3",
+          "date": "2026-04-13",
+          "localizedDescription": "GIF uniquement rangs élevés",
+          "downloadURL": "https://github.com/Kyrinnx/GymTracker/releases/download/v1.9.3/GymTracker.ipa",
+          "size": 15407263,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "1.9.2",
           "date": "2026-04-13",
           "localizedDescription": "GIFs rangs élevés, graphique BF, fix scroll",
