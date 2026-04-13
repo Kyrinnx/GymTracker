@@ -22,6 +22,14 @@
       "screenshotURLs": [],
       "versions": [
         {
+          "version": "1.9.2",
+          "date": "2026-04-13",
+          "localizedDescription": "GIFs rangs élevés, graphique BF, fix scroll",
+          "downloadURL": "https://github.com/Kyrinnx/GymTracker/releases/download/v1.9.2/GymTracker.ipa",
+          "size": 15404050,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "1.9.1",
           "date": "2026-04-13",
           "localizedDescription": "Onglet XP séparé, fix tutoriel, 5 onglets",
