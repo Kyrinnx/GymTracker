@@ -22,6 +22,14 @@
       "screenshotURLs": [],
       "versions": [
         {
+          "version": "1.11.2",
+          "date": "2026-04-13",
+          "localizedDescription": "Fix exercice grisé après drag",
+          "downloadURL": "https://github.com/Kyrinnx/GymTracker/releases/download/v1.11.2/GymTracker.ipa",
+          "size": 15045675,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "1.11.1",
           "date": "2026-04-13",
           "localizedDescription": "Drag & drop exos, bouton OK clavier, rename met à jour le programme",
