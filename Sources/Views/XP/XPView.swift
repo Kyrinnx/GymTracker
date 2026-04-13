@@ -162,7 +162,7 @@ struct XPView: View {
     // MARK: - Streak
 
     private var streakSection: some View {
-        let streak = StreakCalculator.currentStreak(sessions: Array(sessions))
+        let streak = StreakCalculator.currentStreak(sessions: Array(sessions), weeklyGoal: weeklyGoal)
         let days = StreakCalculator.weekDays(sessions: Array(sessions))
         let dayLabels = ["L", "M", "M", "J", "V", "S", "D"]
         let calendar = Calendar.current
