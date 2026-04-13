@@ -87,6 +87,7 @@ struct SettingsView: View {
                     } label: {
                         Label("Activité", systemImage: "figure.run")
                     }
+                    .tint(theme.color.accent)
                 }
 
                 // MARK: - Objectif
@@ -99,6 +100,7 @@ struct SettingsView: View {
                             Label(goal.label, systemImage: goal.icon).tag(goal)
                         }
                     }
+                    .tint(theme.color.accent)
 
                     let currentGoal = FitnessGoal(rawValue: userGoalRaw)
                     if currentGoal?.hasWeightTarget == true {
