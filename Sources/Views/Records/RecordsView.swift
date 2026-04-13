@@ -12,6 +12,7 @@ struct RecordsView: View {
     @AppStorage("userGoal") private var userGoalRaw: String = ""
     @AppStorage("targetWeight") private var targetWeight: Double = 0
     @AppStorage("weeklyGoal") private var weeklyGoal: Int = 4
+    @AppStorage("userHeight") private var userHeight: Int = 0
     @State private var selectedExerciseName: String?
     @State private var weightInput: String = ""
     @State private var bfInput: String = ""
@@ -259,6 +260,49 @@ struct RecordsView: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .center)
         }
+
+        // Health warning
+        if let warning = weightTargetWarning(goal: goal, currentKg: current) {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+                Text(warning)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(10)
+            .background(.red.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
+    private func weightTargetWarning(goal: FitnessGoal, currentKg: Double) -> String? {
+        guard targetWeight > 0 else { return nil }
+        let heightM = userHeight > 0 ? Double(userHeight) / 100.0 : 0
+
+        if goal == .cut {
+            if heightM > 0 {
+                let bmi = targetWeight / (heightM * heightM)
+                if bmi < 17 {
+                    return "Danger : poids cible = IMC \(String(format: "%.1f", bmi)). Risque grave pour ta santé."
+                } else if bmi < 18.5 {
+                    return "Attention : poids cible = IMC \(String(format: "%.1f", bmi)), sous la normale. Consulte un professionnel."
+                }
+            }
+            let loss = (currentKg - targetWeight) / currentKg * 100
+            if loss > 30 {
+                return "Perdre \(Int(loss))% de ton poids est dangereux. Objectif recommandé : 10-15% par phase."
+            }
+        } else if goal == .bulk {
+            if heightM > 0 {
+                let bmi = targetWeight / (heightM * heightM)
+                if bmi > 35 {
+                    return "Poids cible = IMC \(String(format: "%.1f", bmi)). Risques pour la santé."
+                }
+            }
+        }
+        return nil
     }
 
     @ViewBuilder

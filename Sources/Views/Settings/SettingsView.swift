@@ -14,6 +14,9 @@ struct SettingsView: View {
     @AppStorage("userGoal") private var userGoalRaw: String = ""
     @AppStorage("targetWeight") private var targetWeight: Double = 0
     @AppStorage("weeklyGoal") private var weeklyGoal: Int = 4
+    @AppStorage("userHeight") private var userHeight: Int = 0
+    @AppStorage("userAge") private var userAge: Int = 0
+    @AppStorage("activityLevel") private var activityLevelRaw: String = "moderate"
 
     @State private var notifService = NotificationService.shared
     @State private var targetWeightInput: String = ""
@@ -55,6 +58,34 @@ struct SettingsView: View {
                             .foregroundStyle(theme.color.accent)
                         TextField("Prénom", text: $userName)
                             .textInputAutocapitalization(.words)
+                    }
+                    HStack {
+                        Label("Taille", systemImage: "ruler")
+                        Spacer()
+                        TextField("cm", value: $userHeight, format: .number)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 60)
+                        Text("cm").foregroundStyle(.secondary)
+                    }
+                    HStack {
+                        Label("Âge", systemImage: "calendar")
+                        Spacer()
+                        TextField("ans", value: $userAge, format: .number)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 60)
+                        Text("ans").foregroundStyle(.secondary)
+                    }
+                    Picker(selection: Binding(
+                        get: { ActivityLevel(rawValue: activityLevelRaw) ?? .moderate },
+                        set: { activityLevelRaw = $0.rawValue }
+                    )) {
+                        ForEach(ActivityLevel.allCases) { level in
+                            Label(level.label, systemImage: level.icon).tag(level)
+                        }
+                    } label: {
+                        Label("Activité", systemImage: "figure.run")
                     }
                 }
 

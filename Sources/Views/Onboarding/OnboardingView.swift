@@ -2,6 +2,59 @@ import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 
+// MARK: - Activity Level
+
+enum ActivityLevel: String, CaseIterable, Identifiable {
+    case sedentary = "sedentary"
+    case light = "light"
+    case moderate = "moderate"
+    case active = "active"
+    case veryActive = "veryActive"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .sedentary: "Sédentaire"
+        case .light: "Légèrement actif"
+        case .moderate: "Modérément actif"
+        case .active: "Actif"
+        case .veryActive: "Très actif"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .sedentary: "Peu ou pas d'exercice"
+        case .light: "1-2 séances / semaine"
+        case .moderate: "3-4 séances / semaine"
+        case .active: "5-6 séances / semaine"
+        case .veryActive: "Sport intensif quotidien"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .sedentary: "figure.stand"
+        case .light: "figure.walk"
+        case .moderate: "figure.run"
+        case .active: "figure.strengthtraining.traditional"
+        case .veryActive: "flame.fill"
+        }
+    }
+
+    /// TDEE multiplier (Harris-Benedict)
+    var multiplier: Double {
+        switch self {
+        case .sedentary: 1.2
+        case .light: 1.375
+        case .moderate: 1.55
+        case .active: 1.725
+        case .veryActive: 1.9
+        }
+    }
+}
+
 // MARK: - Fitness Goal
 
 enum FitnessGoal: String, CaseIterable, Identifiable {
@@ -80,10 +133,15 @@ struct OnboardingView: View {
     @AppStorage("userGoal") private var userGoalRaw: String = ""
     @AppStorage("targetWeight") private var targetWeight: Double = 0
     @AppStorage("weeklyGoal") private var weeklyGoal: Int = 4
+    @AppStorage("userHeight") private var userHeight: Int = 0
+    @AppStorage("userAge") private var userAge: Int = 0
+    @AppStorage("activityLevel") private var activityLevelRaw: String = "moderate"
 
     @State private var step: Int = 0
     @State private var weightInput: String = ""
     @State private var bfInput: String = ""
+    @State private var heightInput: String = ""
+    @State private var ageInput: String = ""
     @State private var targetWeightInput: String = ""
     @State private var selectedGoal: FitnessGoal? = nil
     @State private var showFilePicker = false
@@ -372,23 +430,45 @@ struct OnboardingView: View {
     }
 
     private var bodyStep: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 20) {
             Image(systemName: "scalemass.fill")
-                .font(.system(size: 70))
+                .font(.system(size: 60))
                 .foregroundStyle(theme.color.accent)
 
             VStack(spacing: 8) {
-                Text("Tes mesures de départ")
+                Text("Tes mesures")
                     .font(.title2.bold())
                     .multilineTextAlignment(.center)
 
-                Text("Optionnel — tu pourras les ajouter plus tard")
+                Text("Pour calculer ton métabolisme de base")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
 
             VStack(spacing: 12) {
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("TAILLE (CM)")
+                            .font(.caption2).fontWeight(.bold).tracking(1).foregroundStyle(.secondary)
+                        TextField("175", text: $heightInput)
+                            .keyboardType(.numberPad)
+                            .font(.title3.bold())
+                            .padding(12)
+                            .background(.regularMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("ÂGE")
+                            .font(.caption2).fontWeight(.bold).tracking(1).foregroundStyle(.secondary)
+                        TextField("25", text: $ageInput)
+                            .keyboardType(.numberPad)
+                            .font(.title3.bold())
+                            .padding(12)
+                            .background(.regularMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                }
                 HStack(spacing: 10) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("POIDS (KG)")
@@ -413,6 +493,44 @@ struct OnboardingView: View {
                 }
             }
             .padding(.horizontal, 32)
+
+            // Activity level
+            VStack(alignment: .leading, spacing: 8) {
+                Text("NIVEAU D'ACTIVITÉ")
+                    .font(.caption2).fontWeight(.bold).tracking(1).foregroundStyle(.secondary)
+                    .padding(.horizontal, 32)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(ActivityLevel.allCases) { level in
+                            let selected = activityLevelRaw == level.rawValue
+                            Button {
+                                withAnimation(.spring(duration: 0.2)) {
+                                    activityLevelRaw = level.rawValue
+                                }
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Image(systemName: level.icon)
+                                        .font(.caption)
+                                    Text(level.label)
+                                        .font(.system(size: 10, weight: .bold))
+                                    Text(level.subtitle)
+                                        .font(.system(size: 8))
+                                        .foregroundStyle(selected ? .white.opacity(0.8) : .secondary)
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 8)
+                                .frame(minWidth: 90)
+                                .background(selected ? theme.color.accent : Color(.secondarySystemGroupedBackground))
+                                .foregroundStyle(selected ? .white : .primary)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 32)
+                }
+            }
         }
     }
 
@@ -489,11 +607,71 @@ struct OnboardingView: View {
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 24)
                     }
+
+                    // Danger warning
+                    if let warning = targetWeightWarning {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.red)
+                            Text(warning)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(12)
+                        .background(.red.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal, 24)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .padding(.horizontal, 8)
+    }
+
+    /// Warning if target weight is dangerous based on height/current weight
+    private var targetWeightWarning: String? {
+        guard let goal = selectedGoal, goal.hasWeightTarget else { return nil }
+        guard let currentKg = Double(weightInput.replacingOccurrences(of: ",", with: ".")),
+              currentKg > 0,
+              let tgtKg = Double(targetWeightInput.replacingOccurrences(of: ",", with: ".")),
+              tgtKg > 0 else { return nil }
+
+        let heightCm = Double(heightInput) ?? Double(userHeight)
+        let heightM = heightCm > 0 ? heightCm / 100.0 : 0
+
+        if goal == .cut {
+            // Check BMI at target if height known
+            if heightM > 0 {
+                let targetBMI = tgtKg / (heightM * heightM)
+                if targetBMI < 17 {
+                    return "⚠️ Danger : ton poids cible correspond à un IMC de \(String(format: "%.1f", targetBMI)), ce qui est très insuffisant et dangereux pour ta santé."
+                } else if targetBMI < 18.5 {
+                    return "Attention : ton poids cible correspond à un IMC sous la normale (\(String(format: "%.1f", targetBMI))). Consulte un professionnel de santé."
+                }
+            }
+            // Check % loss too extreme
+            let lossPercent = (currentKg - tgtKg) / currentKg * 100
+            if lossPercent > 30 {
+                return "Perdre \(Int(lossPercent))% de ton poids est dangereux. Un objectif réaliste est 10-15% max par phase de sèche."
+            } else if lossPercent > 20 {
+                return "Attention : perdre \(Int(lossPercent))% de ton poids en une seule phase peut entraîner une perte de muscle importante. Envisage plusieurs phases."
+            }
+        } else if goal == .bulk {
+            if heightM > 0 {
+                let targetBMI = tgtKg / (heightM * heightM)
+                if targetBMI > 35 {
+                    return "Attention : ton poids cible correspond à un IMC de \(String(format: "%.1f", targetBMI)), ce qui comporte des risques pour ta santé."
+                }
+            }
+            let gainPercent = (tgtKg - currentKg) / currentKg * 100
+            if gainPercent > 25 {
+                return "Prendre \(Int(gainPercent))% de ton poids risque d'entraîner un excès de gras. Un gain de 10-15% par phase est recommandé."
+            }
+        }
+        return nil
     }
 
     private var goalEstimation: String? {
@@ -598,6 +776,9 @@ struct OnboardingView: View {
 
     private func next() {
         if step == 3 {
+            // Save height & age
+            if let h = Int(heightInput), h > 0 { userHeight = h }
+            if let a = Int(ageInput), a > 0 { userAge = a }
             // Save weight when leaving body step
             if let kg = Double(weightInput.replacingOccurrences(of: ",", with: ".")), kg > 0 {
                 let bf = Double(bfInput.replacingOccurrences(of: ",", with: "."))

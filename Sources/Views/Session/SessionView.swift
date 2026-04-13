@@ -631,10 +631,20 @@ struct SessionView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 16) {
-                // Mascot GIF
-                GIFView(name: rank.mascot)
-                    .frame(width: 50, height: 50)
-                    .clipped()
+                // Mascot: GIF for high ranks, icon for others
+                let isHighTier = [Rank.elite, .legende, .titan, .mythique].contains(rank)
+                if isHighTier {
+                    GIFView(name: rank.mascot)
+                        .frame(width: 50, height: 50)
+                        .clipped()
+                } else {
+                    Image(systemName: rank.icon)
+                        .font(.system(size: 30))
+                        .foregroundStyle(rank.color)
+                        .frame(width: 50, height: 50)
+                        .background(rank.color.opacity(0.15))
+                        .clipShape(Circle())
+                }
 
                 Text(rank.label)
                     .font(.title2)
