@@ -7,11 +7,12 @@ struct ContentView: View {
     @State private var showTutorial = false
 
     enum Tab: String, CaseIterable {
-        case home, records, history, settings
+        case home, stats, xp, history, settings
         var label: String {
             switch self {
             case .home: "Accueil"
-            case .records: "Records"
+            case .stats: "Stats"
+            case .xp: "XP"
             case .history: "Historique"
             case .settings: "Réglages"
             }
@@ -19,7 +20,8 @@ struct ContentView: View {
         var icon: String {
             switch self {
             case .home: "house.fill"
-            case .records: "trophy.fill"
+            case .stats: "chart.bar.fill"
+            case .xp: "trophy.fill"
             case .history: "clock.fill"
             case .settings: "gearshape.fill"
             }
@@ -40,9 +42,11 @@ struct ContentView: View {
         .overlayPreferenceValue(SpotlightBoundsKey.self) { anchors in
             if showTutorial {
                 TutorialOverlay(isPresented: $showTutorial, anchors: anchors)
-                    .onChange(of: showTutorial) { _, shown in
-                        if !shown { tutorialCompleted = true }
-                    }
+            }
+        }
+        .onChange(of: showTutorial) { _, shown in
+            if !shown && !tutorialCompleted {
+                tutorialCompleted = true
             }
         }
         .onAppear {
@@ -85,8 +89,10 @@ struct ContentView: View {
         switch tab {
         case .home:
             HomeView()
-        case .records:
+        case .stats:
             RecordsView()
+        case .xp:
+            XPView()
         case .history:
             HistoryView()
         case .settings:

@@ -12,8 +12,6 @@ struct RecordsView: View {
     @AppStorage("userGoal") private var userGoalRaw: String = ""
     @AppStorage("targetWeight") private var targetWeight: Double = 0
     @AppStorage("weeklyGoal") private var weeklyGoal: Int = 4
-    @AppStorage("totalXP") private var totalXP: Int = 0
-
     @State private var selectedExerciseName: String?
     @State private var weightInput: String = ""
     @State private var bfInput: String = ""
@@ -74,7 +72,6 @@ struct RecordsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    rankSection
                     summaryCards
                     if userGoal != nil {
                         goalTrackingSection
@@ -100,7 +97,7 @@ struct RecordsView: View {
                 }
                 .padding(.bottom, 20)
             }
-            .navigationTitle("Progrès")
+            .navigationTitle("Stats")
             .sheet(item: Binding(
                 get: { selectedExerciseName.map { ExerciseNameWrapper(name: $0) } },
                 set: { selectedExerciseName = $0?.name }
@@ -110,152 +107,6 @@ struct RecordsView: View {
                 }
             }
         }
-    }
-
-    // MARK: - Rank Section
-
-    private var rankSection: some View {
-        let rank = Rank.from(xp: totalXP)
-        let nextRank = rank.next
-        let xpInRank = totalXP - rank.xpRequired
-        let xpForNext = (nextRank?.xpRequired ?? rank.xpRequired) - rank.xpRequired
-        let progress: Double = xpForNext > 0 ? min(Double(xpInRank) / Double(xpForNext), 1.0) : 1.0
-        let finishedSessions = sessions.filter { $0.finished != nil }
-
-        return VStack(spacing: 16) {
-            // Rank badge + mascot
-            VStack(spacing: 8) {
-                GIFView(name: rank.mascot)
-                    .frame(width: 80, height: 80)
-                    .clipped()
-
-                Text(rank.label)
-                    .font(.title2)
-                    .fontWeight(.black)
-                    .foregroundStyle(rank.color)
-
-                Text("\(totalXP) XP")
-                    .font(.subheadline)
-                    .fontWeight(.bold)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.top, 8)
-
-            // Progress to next rank
-            if let next = nextRank {
-                VStack(spacing: 6) {
-                    HStack {
-                        Text(rank.label)
-                            .font(.caption2)
-                            .fontWeight(.bold)
-                            .foregroundStyle(rank.color)
-                        Spacer()
-                        Text(next.label)
-                            .font(.caption2)
-                            .fontWeight(.bold)
-                            .foregroundStyle(next.color)
-                    }
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Capsule()
-                                .fill(.quaternary)
-                                .frame(height: 8)
-                            Capsule()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [rank.color, next.color],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .frame(width: geo.size.width * progress, height: 8)
-                        }
-                    }
-                    .frame(height: 8)
-
-                    Text("\(next.xpRequired - totalXP) XP restants")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-                .padding(.horizontal, 4)
-            }
-
-            // All ranks overview
-            VStack(spacing: 0) {
-                ForEach(Rank.allCases, id: \.self) { r in
-                    HStack(spacing: 12) {
-                        Image(systemName: r.icon)
-                            .font(.caption)
-                            .foregroundStyle(r == rank ? r.color : .secondary)
-                            .frame(width: 28, height: 28)
-                            .background(r == rank ? r.color.opacity(0.15) : .clear)
-                            .clipShape(Circle())
-                        Text(r.label)
-                            .font(.subheadline)
-                            .fontWeight(r == rank ? .bold : .regular)
-                            .foregroundStyle(totalXP >= r.xpRequired ? .primary : .tertiary)
-                        Spacer()
-                        Text("\(r.xpRequired) XP")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        if totalXP >= r.xpRequired {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.caption)
-                                .foregroundStyle(.green)
-                        }
-                    }
-                    .padding(.vertical, 6)
-                    if r != Rank.allCases.last {
-                        Divider()
-                    }
-                }
-            }
-            .padding(16)
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-
-            // Stats
-            HStack(spacing: 10) {
-                VStack(spacing: 2) {
-                    Text("\(finishedSessions.count)")
-                        .font(.title3).fontWeight(.black)
-                    Text("SÉANCES")
-                        .font(.system(size: 8)).fontWeight(.bold).tracking(1)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(.regularMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                VStack(spacing: 2) {
-                    Text("\(totalXP)")
-                        .font(.title3).fontWeight(.black)
-                        .foregroundStyle(theme.color.accent)
-                    Text("XP TOTAL")
-                        .font(.system(size: 8)).fontWeight(.bold).tracking(1)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(.regularMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                VStack(spacing: 2) {
-                    Text(finishedSessions.isEmpty ? "—" : "\(totalXP / finishedSessions.count)")
-                        .font(.title3).fontWeight(.black)
-                    Text("XP / SÉANCE")
-                        .font(.system(size: 8)).fontWeight(.bold).tracking(1)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(.regularMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
-        }
-        .padding(.horizontal)
     }
 
     // MARK: - Summary
