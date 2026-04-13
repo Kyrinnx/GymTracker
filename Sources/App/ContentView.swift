@@ -30,11 +30,12 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             ForEach(Tab.allCases, id: \.self) { tab in
                 tabContent(for: tab)
-                    .tabItem {
-                        Label(tab.label, systemImage: tab.icon)
-                    }
+                    .toolbar(.hidden, for: .tabBar)
                     .tag(tab)
             }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            customTabBar
         }
         .overlayPreferenceValue(SpotlightBoundsKey.self) { anchors in
             if showTutorial {
@@ -51,6 +52,32 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    private var customTabBar: some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: 0) {
+                ForEach(Tab.allCases, id: \.self) { tab in
+                    Button {
+                        selectedTab = tab
+                    } label: {
+                        VStack(spacing: 4) {
+                            Image(systemName: tab.icon)
+                                .font(.system(size: 18))
+                            Text(tab.label)
+                                .font(.caption2)
+                        }
+                        .tutorialTag("tab_\(tab.rawValue)")
+                        .foregroundStyle(selectedTab == tab ? theme.color.accent : .secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .background(.bar)
     }
 
     @ViewBuilder

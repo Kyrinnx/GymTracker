@@ -11,7 +11,9 @@ struct SpotlightBoundsKey: PreferenceKey {
 
 extension View {
     func tutorialTag(_ key: String) -> some View {
-        self.anchorPreference(key: SpotlightBoundsKey.self, value: .bounds) { [key: $0] }
+        self.transformAnchorPreference(key: SpotlightBoundsKey.self, value: .bounds) { prefs, anchor in
+            prefs[key] = anchor
+        }
     }
 }
 
@@ -53,7 +55,7 @@ struct TutorialOverlay: View {
 
             ZStack {
                 // Dark overlay with cutout hole
-                cutoutOverlay(highlight: highlight)
+                cutoutOverlay(highlight: highlight, safeAreaTop: proxy.safeAreaInsets.top)
                     .ignoresSafeArea()
                     .onTapGesture { advance() }
 
@@ -77,29 +79,7 @@ struct TutorialOverlay: View {
     // MARK: - Resolve highlight rect
 
     private func resolvedRect(in proxy: GeometryProxy) -> CGRect? {
-        let key = step.key
-        // Tab bar items — compute position from screen geometry
-        if key.hasPrefix("tab_") {
-            let tabIndex: Int? = switch key {
-            case "tab_home": 0
-            case "tab_records": 1
-            case "tab_history": 2
-            case "tab_settings": 3
-            default: nil
-            }
-            guard let idx = tabIndex else { return nil }
-            let tabWidth = proxy.size.width / 4
-            let tabBarHeight: CGFloat = 49
-            let y = proxy.size.height - proxy.safeAreaInsets.bottom - tabBarHeight / 2
-            return CGRect(
-                x: tabWidth * CGFloat(idx) + tabWidth * 0.15,
-                y: y - tabBarHeight * 0.3,
-                width: tabWidth * 0.7,
-                height: tabBarHeight * 0.8
-            )
-        }
-        // Regular anchored elements
-        if let anchor = anchors[key] {
+        if let anchor = anchors[step.key] {
             return proxy[anchor]
         }
         return nil
@@ -107,14 +87,16 @@ struct TutorialOverlay: View {
 
     // MARK: - Cutout overlay
 
-    private func cutoutOverlay(highlight: CGRect?) -> some View {
+    private func cutoutOverlay(highlight: CGRect?, safeAreaTop: CGFloat) -> some View {
         Canvas { context, size in
             // Full dark rect
             context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.black.opacity(0.78)))
 
-            // Cut hole if we have a highlight
+            // Cut hole — offset by safe area because Canvas with .ignoresSafeArea()
+            // has (0,0) at the screen edge, but highlight coords start below status bar
             if let r = highlight {
-                let hole = r.insetBy(dx: -8, dy: -8)
+                let adjusted = CGRect(x: r.minX, y: r.minY + safeAreaTop, width: r.width, height: r.height)
+                let hole = adjusted.insetBy(dx: -8, dy: -8)
                 let holePath = Path(roundedRect: hole, cornerRadius: 12)
                 context.blendMode = .clear
                 context.fill(holePath, with: .color(.white))

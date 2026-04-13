@@ -116,6 +116,32 @@ struct HistoryView: View {
         }
     }
 
+    private func shareText(for session: WorkoutSession) -> String {
+        var lines: [String] = []
+        lines.append("GymTracker — \(session.templateName)")
+        lines.append(session.started.formatted(.dateTime.weekday(.wide).day().month(.wide).year()))
+
+        var stats: [String] = []
+        if session.durationMinutes > 0 { stats.append("\(session.durationMinutes) min") }
+        stats.append("\(session.totalSets) séries")
+        stats.append("\(Int(session.totalVolume)) kg")
+        lines.append(stats.joined(separator: " · "))
+
+        lines.append("")
+        for ex in session.exercisesArray.sorted(by: { $0.order < $1.order }) {
+            let doneSets = ex.setsArray.filter(\.done).sorted(by: { $0.order < $1.order })
+            if doneSets.isEmpty { continue }
+            let detail = doneSets.map { "\(String(format: "%.0f", $0.kg))kg x\($0.reps)" }.joined(separator: ", ")
+            lines.append("• \(ex.name) — \(detail)")
+        }
+
+        if session.caloriesBurned > 0 {
+            lines.append("")
+            lines.append("\(session.caloriesBurned) kcal estimées")
+        }
+        return lines.joined(separator: "\n")
+    }
+
     private func saveSessionAsTemplate(_ session: WorkoutSession) {
         let nextOrder = (customTemplates.map(\.order).max() ?? -1) + 1
         let custom = CustomTemplate(name: session.templateName, subtitle: "", order: nextOrder)

@@ -18,8 +18,8 @@ targets:
     platform: iOS
     sources:
       - Sources
-    resources:
-      - Resources
+      - path: Resources/Assets.xcassets
+        buildPhase: resources
     entitlements:
       path: Resources/GymTracker.entitlements
     settings:

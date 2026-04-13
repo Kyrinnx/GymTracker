@@ -126,6 +126,9 @@ struct HomeView: View {
                                         startSession(fromCustom: tpl)
                                     }
                                     .contextMenu {
+                                        ShareLink(item: shareText(for: tpl)) {
+                                            Label("Partager", systemImage: "square.and.arrow.up")
+                                        }
                                         Button {
                                             tpl.isFavorite.toggle()
                                         } label: {
@@ -225,7 +228,7 @@ struct HomeView: View {
         }
         .sheet(item: $newTemplate) { tpl in
             NavigationStack {
-                TemplateEditorView(template: tpl)
+                TemplateEditorView(template: tpl, isNew: true)
             }
         }
         .sheet(isPresented: $showAIImport) {
@@ -251,7 +254,6 @@ struct HomeView: View {
 
     private func startSession(from template: WorkoutTemplate) {
         let session = WorkoutSession(templateId: template.id, templateName: template.name)
-        context.insert(session)
 
         let lastOfTemplate = sessions.first { $0.templateId == template.id && $0.finished != nil }
 
@@ -292,7 +294,6 @@ struct HomeView: View {
 
     private func startSession(fromCustom template: CustomTemplate) {
         let session = WorkoutSession(templateId: nil, templateName: template.name.isEmpty ? "Séance perso" : template.name)
-        context.insert(session)
 
         let lastOfName = sessions.first { $0.templateName == template.name && $0.finished != nil }
 
@@ -334,7 +335,6 @@ struct HomeView: View {
 
     private func startFreeSession() {
         let session = WorkoutSession(templateName: "Séance libre")
-        context.insert(session)
         activeSession = session
     }
 
@@ -357,6 +357,33 @@ struct HomeView: View {
             if custom.exercises == nil { custom.exercises = [] }
             custom.exercises?.append(cex)
         }
+    }
+
+    private func shareText(for template: CustomTemplate) -> String {
+        let name = template.name.isEmpty ? "Programme" : template.name
+        var lines: [String] = []
+        lines.append(unicodeBold(name))
+        lines.append("")
+        for ex in template.exercisesArray.sorted(by: { $0.order < $1.order }) {
+            let detail = ex.scheme.isEmpty ? "\(ex.defaultSets)×\(ex.defaultReps)" : ex.scheme
+            lines.append("▸ \(ex.name) — \(unicodeBold(detail))")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private func unicodeBold(_ text: String) -> String {
+        text.unicodeScalars.map { scalar in
+            switch scalar.value {
+            case 0x41...0x5A: // A-Z
+                return String(UnicodeScalar(0x1D5D4 + scalar.value - 0x41)!)
+            case 0x61...0x7A: // a-z
+                return String(UnicodeScalar(0x1D5EE + scalar.value - 0x61)!)
+            case 0x30...0x39: // 0-9
+                return String(UnicodeScalar(0x1D7EC + scalar.value - 0x30)!)
+            default:
+                return String(scalar)
+            }
+        }.joined()
     }
 
     private func duplicateCustomTemplate(_ template: CustomTemplate) {
@@ -713,7 +740,7 @@ struct ProgramLibraryView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \CustomTemplate.order) private var customTemplates: [CustomTemplate]
 
-    @State private var addedMessage: String?
+    @State private var addedTemplateId: String?
 
     var body: some View {
         ScrollView {
@@ -737,14 +764,6 @@ struct ProgramLibraryView: View {
         }
         .navigationTitle("Bibliothèque")
         .navigationBarTitleDisplayMode(.inline)
-        .alert("Ajouté", isPresented: Binding(
-            get: { addedMessage != nil },
-            set: { if !$0 { addedMessage = nil } }
-        )) {
-            Button("OK") {}
-        } message: {
-            Text(addedMessage ?? "")
-        }
     }
 
     private func libraryRow(_ tpl: WorkoutTemplate) -> some View {
@@ -774,11 +793,13 @@ struct ProgramLibraryView: View {
             Button {
                 addToMyPrograms(tpl)
             } label: {
-                Image(systemName: "plus.circle.fill")
+                Image(systemName: addedTemplateId == tpl.id ? "checkmark.circle.fill" : "plus.circle.fill")
                     .font(.title2)
-                    .foregroundStyle(theme.color.accent)
+                    .foregroundStyle(addedTemplateId == tpl.id ? .green : theme.color.accent)
+                    .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.plain)
+            .disabled(addedTemplateId == tpl.id)
         }
         .padding(14)
         .background(.regularMaterial)
@@ -803,7 +824,10 @@ struct ProgramLibraryView: View {
             if custom.exercises == nil { custom.exercises = [] }
             custom.exercises?.append(cex)
         }
-        addedMessage = "\"\(template.name)\" ajouté à tes séances ! Tu peux le modifier depuis l'accueil."
+        withAnimation { addedTemplateId = template.id }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation { addedTemplateId = nil }
+        }
     }
 }
 

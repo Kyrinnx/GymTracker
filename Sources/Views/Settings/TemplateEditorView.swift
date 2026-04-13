@@ -7,6 +7,7 @@ struct TemplateEditorView: View {
     @Environment(\.dismiss) private var dismiss
 
     @Bindable var template: CustomTemplate
+    var isNew: Bool = false
 
     @State private var showExercisePicker = false
     @State private var pendingExercise: (name: String, group: MuscleGroup)?
@@ -62,6 +63,15 @@ struct TemplateEditorView: View {
         .navigationTitle(template.name.isEmpty ? "Nouvelle séance" : template.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            if isNew {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annuler") {
+                        context.delete(template)
+                        dismiss()
+                    }
+                    .foregroundStyle(.red)
+                }
+            }
             ToolbarItem(placement: .confirmationAction) {
                 Button("OK") {
                     dismiss()
@@ -69,8 +79,10 @@ struct TemplateEditorView: View {
                 .fontWeight(.bold)
                 .foregroundStyle(theme.color.accent)
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                EditButton()
+            if !isNew {
+                ToolbarItem(placement: .topBarTrailing) {
+                    EditButton()
+                }
             }
         }
         .sheet(isPresented: $showExercisePicker) {

@@ -152,30 +152,6 @@ struct SessionView: View {
                 }
             }
 
-            // Rest duration config
-            HStack(spacing: 8) {
-                Image(systemName: "timer")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("Repos :")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                ForEach([60, 90, 120, 180], id: \.self) { duration in
-                    Button {
-                        restDuration = duration
-                    } label: {
-                        Text("\(duration)s")
-                            .font(.caption)
-                            .fontWeight(restDuration == duration ? .bold : .regular)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(restDuration == duration ? theme.color.accent.opacity(0.2) : Color.clear)
-                            .foregroundStyle(restDuration == duration ? theme.color.accent : .secondary)
-                            .clipShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
         }
         .padding(18)
         .background(.regularMaterial)
@@ -241,13 +217,25 @@ struct SessionView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                if exercise.restSeconds > 0 && exercise.restSeconds != 90 {
-                    Label("\(exercise.restSeconds)s", systemImage: "timer")
+                Menu {
+                    ForEach([0, 30, 60, 90, 120, 180], id: \.self) { duration in
+                        Button {
+                            exercise.restSeconds = duration
+                        } label: {
+                            if duration == 0 {
+                                Label("Désactivé", systemImage: exercise.restSeconds == 0 ? "checkmark" : "")
+                            } else {
+                                Label("\(duration)s", systemImage: exercise.restSeconds == duration ? "checkmark" : "")
+                            }
+                        }
+                    }
+                } label: {
+                    Label(exercise.restSeconds > 0 ? "\(exercise.restSeconds)s" : "Off", systemImage: "timer")
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(exercise.restSeconds > 0 ? theme.color.accent : .secondary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(.ultraThinMaterial)
+                        .background(exercise.restSeconds > 0 ? theme.color.accent.opacity(0.12) : Color(.systemGray6))
                         .clipShape(Capsule())
                 }
                 if !exercise.scheme.isEmpty {
@@ -490,9 +478,8 @@ struct SessionView: View {
 
     private func toggleDone(_ set: WorkoutSet, exercise: ExerciseEntry) {
         set.done.toggle()
-        if set.done {
-            let duration = exercise.restSeconds > 0 ? exercise.restSeconds : restDuration
-            startRestTimer(duration: duration, exerciseName: exercise.name)
+        if set.done && exercise.restSeconds > 0 {
+            startRestTimer(duration: exercise.restSeconds, exerciseName: exercise.name)
         }
     }
 
@@ -524,10 +511,7 @@ struct SessionView: View {
     }
 
     private func deleteExercise(_ exercise: ExerciseEntry) {
-        if let idx = session.exercises?.firstIndex(where: { $0.persistentModelID == exercise.persistentModelID }) {
-            session.exercises?.remove(at: idx)
-        }
-        context.delete(exercise)
+        session.exercises?.removeAll { $0 === exercise }
         // Re-pack orders
         for (i, ex) in session.exercisesArray.sorted(by: { $0.order < $1.order }).enumerated() {
             ex.order = i
@@ -550,6 +534,9 @@ struct SessionView: View {
         session.finished = Date()
         session.caloriesBurned = estimatedCalories
 
+        // Insert session into database only when finished
+        context.insert(session)
+
         // Auto-add new exercises to database + update PRs
         for exercise in session.exercisesArray {
             let bestKg = exercise.setsArray.filter { $0.done && $0.kg > 0 }.map(\.kg).max() ?? 0
@@ -562,7 +549,12 @@ struct SessionView: View {
         }
 
         stopAllTimers()
-        showSaveAsTemplate = true
+        let alreadySaved = customTemplates.contains { $0.name == session.templateName }
+        if alreadySaved || session.templateName == "Séance libre" {
+            dismiss()
+        } else {
+            showSaveAsTemplate = true
+        }
     }
 
     private func saveSessionAsTemplate() {
@@ -588,7 +580,6 @@ struct SessionView: View {
 
     private func cancelSession() {
         stopAllTimers()
-        context.delete(session)
         dismiss()
     }
 }
