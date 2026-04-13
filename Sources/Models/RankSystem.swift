@@ -53,10 +53,11 @@ enum Rank: Int, CaseIterable {
 
     var mascot: String {
         switch self {
-        case .debutant, .habitue: "mascot_debut"
-        case .confirme, .avance: "mascot_confirme"
-        case .elite: "mascot_elite"
-        case .legende, .titan, .mythique: "mascot_legende"
+        case .debutant, .habitue, .confirme, .avance: "mascot_debut"
+        case .elite: "mascot_debut"
+        case .legende: "mascot_confirme"
+        case .titan: "mascot_elite"
+        case .mythique: "mascot_legende"
         }
     }
 
