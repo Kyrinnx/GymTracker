@@ -41,11 +41,24 @@ struct XPView: View {
 
     // MARK: - Hero
 
+    private var isHighTierRank: Bool {
+        [Rank.elite, .legende, .titan, .mythique].contains(rank)
+    }
+
     private var heroSection: some View {
         VStack(spacing: 12) {
-            GIFView(name: rank.mascot)
-                .frame(width: 100, height: 100)
-                .clipped()
+            if isHighTierRank {
+                GIFView(name: rank.mascot)
+                    .frame(width: 100, height: 100)
+                    .clipped()
+            } else {
+                Image(systemName: rank.icon)
+                    .font(.system(size: 44))
+                    .foregroundStyle(rank.color)
+                    .frame(width: 100, height: 100)
+                    .background(rank.color.opacity(0.12))
+                    .clipShape(Circle())
+            }
 
             Text(rank.label)
                 .font(.title)
