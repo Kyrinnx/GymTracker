@@ -18,6 +18,7 @@ struct SessionDTO: Codable {
     var templateId: String?
     var templateName: String
     var caloriesBurned: Int
+    var xpAwarded: Int?
     var exercises: [ExerciseDTO]
 }
 
@@ -41,6 +42,7 @@ struct WeightDTO: Codable {
     var date: Date
     var kg: Double
     var bodyFat: Double?
+    var muscleMass: Double?
 }
 
 struct CustomTemplateDTO: Codable {
@@ -85,6 +87,7 @@ enum DataExportService {
                 templateId: s.templateId,
                 templateName: s.templateName,
                 caloriesBurned: s.caloriesBurned,
+                xpAwarded: s.xpAwarded,
                 exercises: s.exercisesArray.sorted { $0.order < $1.order }.map { ex in
                     ExerciseDTO(
                         name: ex.name,
@@ -101,7 +104,7 @@ enum DataExportService {
         }
 
         let weights = (try? context.fetch(FetchDescriptor<WeightEntry>())) ?? []
-        payload.weights = weights.map { WeightDTO(date: $0.date, kg: $0.kg, bodyFat: $0.bodyFat) }
+        payload.weights = weights.map { WeightDTO(date: $0.date, kg: $0.kg, bodyFat: $0.bodyFat, muscleMass: $0.muscleMass) }
 
         let templates = (try? context.fetch(FetchDescriptor<CustomTemplate>())) ?? []
         payload.customTemplates = templates.map { tpl in
@@ -159,6 +162,7 @@ enum DataExportService {
             session.started = s.started
             session.finished = s.finished
             session.caloriesBurned = s.caloriesBurned
+            session.xpAwarded = s.xpAwarded ?? 0
             context.insert(session)
             for ex in s.exercises {
                 let group = MuscleGroup(rawValue: ex.muscleGroup) ?? .chest
@@ -173,7 +177,7 @@ enum DataExportService {
         }
 
         for w in payload.weights {
-            context.insert(WeightEntry(date: w.date, kg: w.kg, bodyFat: w.bodyFat))
+            context.insert(WeightEntry(date: w.date, kg: w.kg, bodyFat: w.bodyFat, muscleMass: w.muscleMass))
         }
 
         for tpl in payload.customTemplates {
