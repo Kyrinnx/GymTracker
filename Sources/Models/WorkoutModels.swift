@@ -111,16 +111,23 @@ final class WeightEntry {
     var date: Date = Date()
     var kg: Double = 0
     var bodyFat: Double?
+    var muscleMass: Double?
 
-    init(date: Date = Date(), kg: Double, bodyFat: Double? = nil) {
+    init(date: Date = Date(), kg: Double, bodyFat: Double? = nil, muscleMass: Double? = nil) {
         self.date = date
         self.kg = kg
         self.bodyFat = bodyFat
+        self.muscleMass = muscleMass
     }
+
+    /// Lean mass: from manual muscle mass, or calculated from BF%
     var leanMass: Double? {
+        if let mm = muscleMass { return mm }
         guard let bf = bodyFat else { return nil }
         return kg * (1 - bf / 100)
     }
+
+    /// BMR (Katch-McArdle if lean mass available)
     var bmr: Double? {
         guard let lm = leanMass else { return nil }
         return 370 + 21.6 * lm

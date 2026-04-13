@@ -16,6 +16,7 @@ struct RecordsView: View {
     @State private var selectedExerciseName: String?
     @State private var weightInput: String = ""
     @State private var bfInput: String = ""
+    @State private var mmInput: String = ""
 
     private var lastWeight: WeightEntry? { weights.first }
     private var userGoal: FitnessGoal? { FitnessGoal(rawValue: userGoalRaw) }
@@ -85,6 +86,9 @@ struct RecordsView: View {
                     if weights.contains(where: { $0.bodyFat != nil }),
                        weights.filter({ $0.bodyFat != nil }).count >= 2 {
                         bfChart
+                    }
+                    if weights.filter({ $0.muscleMass != nil }).count >= 2 {
+                        mmChart
                     }
                     Text("RECORDS PERSONNELS")
                         .font(.caption)
@@ -457,13 +461,13 @@ struct RecordsView: View {
 
     private var weightSection: some View {
         VStack(spacing: 12) {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("POIDS (KG)")
                         .font(.caption2).fontWeight(.bold).tracking(1).foregroundStyle(.secondary)
                     TextField(lastWeight?.kg.formatted() ?? "75", text: $weightInput)
                         .keyboardType(.decimalPad)
-                        .font(.title3.bold())
+                        .font(.subheadline.bold())
                         .padding(10)
                         .background(.ultraThinMaterial)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -473,7 +477,17 @@ struct RecordsView: View {
                         .font(.caption2).fontWeight(.bold).tracking(1).foregroundStyle(.secondary)
                     TextField("opt.", text: $bfInput)
                         .keyboardType(.decimalPad)
-                        .font(.title3.bold())
+                        .font(.subheadline.bold())
+                        .padding(10)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("MM (KG)")
+                        .font(.caption2).fontWeight(.bold).tracking(1).foregroundStyle(.secondary)
+                    TextField("opt.", text: $mmInput)
+                        .keyboardType(.decimalPad)
+                        .font(.subheadline.bold())
                         .padding(10)
                         .background(.ultraThinMaterial)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -482,17 +496,22 @@ struct RecordsView: View {
                     Image(systemName: "plus")
                         .font(.title3.bold())
                         .foregroundStyle(.white)
-                        .frame(width: 48, height: 48)
+                        .frame(width: 44, height: 44)
                         .background(theme.color.gradient)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
             }
             if let w = lastWeight {
-                HStack(spacing: 12) {
-                    miniStat(value: String(format: "%.1f", w.kg), unit: "kg", label: "Actuel")
+                HStack(spacing: 8) {
+                    miniStat(value: String(format: "%.1f", w.kg), unit: "kg", label: "Poids")
                     miniStat(
                         value: w.bodyFat.map { String(format: "%.1f", $0) } ?? "—",
                         unit: "%", label: "BF"
+                    )
+                    miniStat(
+                        value: w.muscleMass.map { String(format: "%.1f", $0) } ?? (w.leanMass.map { String(format: "%.1f", $0) } ?? "—"),
+                        unit: "kg", label: "MM",
+                        color: .blue
                     )
                     let delta = weights.count >= 2 ? w.kg - weights[1].kg : 0
                     miniStat(
@@ -527,11 +546,13 @@ struct RecordsView: View {
     private func addWeight() {
         guard let kg = Double(weightInput.replacingOccurrences(of: ",", with: ".")), kg > 0 else { return }
         let bf = Double(bfInput.replacingOccurrences(of: ",", with: "."))
-        let entry = WeightEntry(kg: kg, bodyFat: bf)
+        let mm = Double(mmInput.replacingOccurrences(of: ",", with: "."))
+        let entry = WeightEntry(kg: kg, bodyFat: bf, muscleMass: mm)
         context.insert(entry)
 
         weightInput = ""
         bfInput = ""
+        mmInput = ""
     }
 
     private var weightChart: some View {
@@ -573,6 +594,31 @@ struct RecordsView: View {
                     .lineStyle(StrokeStyle(lineWidth: 2.5))
                 PointMark(x: .value("Date", w.date), y: .value("BF", w.bodyFat ?? 0))
                     .foregroundStyle(.orange)
+                    .symbolSize(30)
+            }
+            .chartYScale(domain: .automatic(includesZero: false))
+            .frame(height: 160)
+        }
+        .padding(18)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .padding(.horizontal)
+    }
+
+    private var mmChart: some View {
+        let mmWeights = weights.suffix(30).reversed().filter { $0.muscleMass != nil }
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("Évolution masse musculaire")
+                .font(.subheadline)
+                .fontWeight(.bold)
+            Chart(Array(mmWeights)) { w in
+                AreaMark(x: .value("Date", w.date), y: .value("MM", w.muscleMass ?? 0))
+                    .foregroundStyle(.blue.opacity(0.15).gradient)
+                LineMark(x: .value("Date", w.date), y: .value("MM", w.muscleMass ?? 0))
+                    .foregroundStyle(.blue)
+                    .lineStyle(StrokeStyle(lineWidth: 2.5))
+                PointMark(x: .value("Date", w.date), y: .value("MM", w.muscleMass ?? 0))
+                    .foregroundStyle(.blue)
                     .symbolSize(30)
             }
             .chartYScale(domain: .automatic(includesZero: false))
