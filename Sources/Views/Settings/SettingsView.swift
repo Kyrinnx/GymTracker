@@ -22,6 +22,7 @@ struct SettingsView: View {
     @State private var targetWeightInput: String = ""
     @State private var showResetOnboarding = false
     @AppStorage("onboardingCompleted") private var onboardingCompleted: Bool = false
+    @AppStorage("totalXP") private var totalXP: Int = 0
 
     // Data export / import
     @State private var exportURL: URL?
@@ -341,6 +342,7 @@ struct SettingsView: View {
                 }
             }
             .tint(theme.color.accent)
+            .accentColor(theme.color.accent)
             .navigationTitle("Réglages")
             .task {
                 await notifService.refreshAuthorizationStatus()
@@ -465,6 +467,7 @@ struct SettingsView: View {
             _ = try AutoBackupService.safetyBackup(context: context)
             // 2. Wipe all data
             try DataExportService.wipeAll(context: context)
+            totalXP = 0
             refreshLastBackupDisplay()
             importMessage = "Données effacées ✅\n\nUne sauvegarde de sécurité a été créée dans :\n• iPhone : Fichiers → GymTracker → Sécurité\n• iCloud Drive → ton dossier → Sécurité\n\nPour restaurer : Réglages → Données → Importer un fichier"
         } catch {

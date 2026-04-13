@@ -14,6 +14,14 @@ struct XPView: View {
         sessions.filter { $0.finished != nil }
     }
 
+    /// Recalculate XP from stored session data to stay consistent
+    private func reconcileXP() {
+        let storedXP = finishedSessions.reduce(0) { $0 + $1.xpAwarded }
+        if storedXP != totalXP {
+            totalXP = max(0, storedXP)
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -36,6 +44,7 @@ struct XPView: View {
                 .padding(.bottom, 80)
             }
             .navigationTitle("Progression")
+            .onAppear { reconcileXP() }
         }
     }
 
