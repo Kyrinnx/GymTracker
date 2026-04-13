@@ -83,6 +83,7 @@ final class WorkoutSession {
     var templateId: String?
     var templateName: String = "Séance libre"
     var caloriesBurned: Int = 0
+    var xpAwarded: Int = 0
     @Relationship(deleteRule: .cascade) var exercises: [ExerciseEntry]? = []
 
     init(templateId: String? = nil, templateName: String = "Séance libre") {
@@ -90,6 +91,7 @@ final class WorkoutSession {
         self.templateId = templateId
         self.templateName = templateName
         self.caloriesBurned = 0
+        self.xpAwarded = 0
         self.exercises = []
     }
     var exercisesArray: [ExerciseEntry] { exercises ?? [] }

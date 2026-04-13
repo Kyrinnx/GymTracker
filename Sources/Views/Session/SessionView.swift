@@ -580,6 +580,7 @@ struct SessionView: View {
         }
 
         // Award XP
+        session.xpAwarded = breakdown.total
         totalXP = max(0, totalXP + breakdown.total)
         xpBreakdown = breakdown
 

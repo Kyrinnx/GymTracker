@@ -4,6 +4,7 @@ import SwiftData
 struct HistoryView: View {
     @Environment(ThemeManager.self) private var theme
     @Environment(\.modelContext) private var context
+    @AppStorage("totalXP") private var totalXP = 0
     @Query(sort: \WorkoutSession.started, order: .reverse) private var sessions: [WorkoutSession]
     @Query(sort: \CustomTemplate.order) private var customTemplates: [CustomTemplate]
 
@@ -110,7 +111,10 @@ struct HistoryView: View {
                     Label("Sauvegarder comme programme", systemImage: "square.and.arrow.down")
                 }
             }
-            Button(role: .destructive) { context.delete(session) } label: {
+            Button(role: .destructive) {
+                totalXP = max(0, totalXP - session.xpAwarded)
+                context.delete(session)
+            } label: {
                 Label("Supprimer", systemImage: "trash")
             }
         }
