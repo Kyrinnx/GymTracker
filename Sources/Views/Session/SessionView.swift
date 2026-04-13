@@ -43,7 +43,12 @@ struct SessionView: View {
     // Edit exercise
     @State private var editingExercise: ExerciseEntry?
     @State private var editedName: String = ""
+    @State private var oldExerciseName: String = ""
     @State private var showRenameAlert = false
+    @State private var showUpdateTemplateConfirm = false
+
+    // Drag-and-drop reorder
+    @State private var draggedExercise: ExerciseEntry?
 
     @Query(sort: \CustomTemplate.order) private var customTemplates: [CustomTemplate]
 
@@ -91,9 +96,29 @@ struct SessionView: View {
             Button("Annuler", role: .cancel) {}
             Button("OK") {
                 if let ex = editingExercise, !editedName.isEmpty {
+                    oldExerciseName = ex.name
                     ex.name = editedName
+                    // Check if a saved template contains the old exercise name
+                    let hasTemplate = customTemplates.contains { tpl in
+                        tpl.name == session.templateName &&
+                        tpl.exercisesArray.contains { $0.name == oldExerciseName }
+                    }
+                    if hasTemplate {
+                        showUpdateTemplateConfirm = true
+                    }
                 }
             }
+        }
+        .confirmationDialog("Mettre à jour le programme ?", isPresented: $showUpdateTemplateConfirm, titleVisibility: .visible) {
+            Button("Oui, remplacer dans le programme") {
+                if let tpl = customTemplates.first(where: { $0.name == session.templateName }),
+                   let tplEx = tpl.exercisesArray.first(where: { $0.name == oldExerciseName }) {
+                    tplEx.name = editedName
+                }
+            }
+            Button("Non, juste cette séance", role: .cancel) {}
+        } message: {
+            Text("L'exercice « \(oldExerciseName) » existe dans ton programme « \(session.templateName) ». Veux-tu le remplacer par « \(editedName) » ?")
         }
         .sheet(isPresented: $showExercisePicker) {
             ExercisePickerView { name, group in
@@ -158,6 +183,13 @@ struct SessionView: View {
                     }
                     .fontWeight(.bold)
                     .foregroundStyle(theme.color.accent)
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("OK") {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    }
+                    .fontWeight(.bold)
                 }
             }
         }
@@ -229,6 +261,16 @@ struct SessionView: View {
         ForEach(sortedExercises) { exercise in
             exerciseCard(exercise)
                 .padding(.horizontal)
+                .onDrag {
+                    draggedExercise = exercise
+                    return NSItemProvider(object: "\(exercise.order)" as NSString)
+                }
+                .onDrop(of: [.text], delegate: ExerciseDropDelegate(
+                    target: exercise,
+                    dragged: $draggedExercise,
+                    session: session
+                ))
+                .opacity(draggedExercise === exercise ? 0.4 : 1.0)
         }
     }
 
@@ -876,5 +918,40 @@ struct SessionView: View {
     private func cancelSession() {
         stopAllTimers()
         dismiss()
+    }
+}
+
+// MARK: - Drag & Drop Delegate
+
+struct ExerciseDropDelegate: DropDelegate {
+    let target: ExerciseEntry
+    @Binding var dragged: ExerciseEntry?
+    let session: WorkoutSession
+
+    func dropEntered(info: DropInfo) {
+        guard let dragged = dragged, dragged !== target else { return }
+        withAnimation(.easeInOut(duration: 0.25)) {
+            let fromOrder = dragged.order
+            let toOrder = target.order
+            // Shift all exercises between the two positions
+            let sorted = session.exercisesArray.sorted { $0.order < $1.order }
+            for ex in sorted {
+                if fromOrder < toOrder {
+                    if ex.order > fromOrder && ex.order <= toOrder { ex.order -= 1 }
+                } else {
+                    if ex.order >= toOrder && ex.order < fromOrder { ex.order += 1 }
+                }
+            }
+            dragged.order = toOrder
+        }
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        dragged = nil
+        return true
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
     }
 }
