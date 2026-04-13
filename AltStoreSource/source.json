@@ -22,6 +22,14 @@
       "screenshotURLs": [],
       "versions": [
         {
+          "version": "1.9.9",
+          "date": "2026-04-13",
+          "localizedDescription": "Fix image BodyFront, XP cohérent à la suppression de séance, feedback objectif conditionnel",
+          "downloadURL": "https://github.com/Kyrinnx/GymTracker/releases/download/v1.9.9/GymTracker.ipa",
+          "size": 14321464,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "1.9.8",
           "date": "2026-04-13",
           "localizedDescription": "Nouvelle image BodyFront nettoyée + couleurs thème sur Pickers",
