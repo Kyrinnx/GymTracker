@@ -270,7 +270,6 @@ struct SessionView: View {
                     dragged: $draggedExercise,
                     session: session
                 ))
-                .opacity(draggedExercise === exercise ? 0.4 : 1.0)
         }
     }
 
@@ -953,5 +952,13 @@ struct ExerciseDropDelegate: DropDelegate {
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
         DropProposal(operation: .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        // Safety: reset if drag leaves all targets
+    }
+
+    func validateDrop(info: DropInfo) -> Bool {
+        true
     }
 }
