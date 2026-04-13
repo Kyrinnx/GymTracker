@@ -22,6 +22,14 @@
       "screenshotURLs": [],
       "versions": [
         {
+          "version": "1.9.7",
+          "date": "2026-04-13",
+          "localizedDescription": "Fix détourage body map",
+          "downloadURL": "https://github.com/Kyrinnx/GymTracker/releases/download/v1.9.7/GymTracker.ipa",
+          "size": 13552780,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "1.9.6",
           "date": "2026-04-13",
           "localizedDescription": "Masse musculaire, taille/âge/activité, alertes santé",
