@@ -197,13 +197,20 @@ struct RecordsView: View {
                         }
                     }
 
-                    // Progress bar for cut/bulk
-                    if goal.hasWeightTarget && targetWeight > 0 {
-                        goalProgressBar(goal: goal, current: currentKg)
-                    }
+                    if weights.count >= 2 {
+                        // Progress bar for cut/bulk
+                        if goal.hasWeightTarget && targetWeight > 0 {
+                            goalProgressBar(goal: goal, current: currentKg)
+                        }
 
-                    // Smart feedback
-                    goalFeedback(goal: goal, current: currentKg)
+                        // Smart feedback
+                        goalFeedback(goal: goal, current: currentKg)
+                    } else {
+                        Text("Ajoute plus d'entrées de poids pour suivre ta progression")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    }
                 }
             } else if userGoal != nil && lastWeight == nil {
                 Text("Ajoute ton poids pour suivre ta progression")
