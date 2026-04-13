@@ -20,6 +20,8 @@ targets:
       - Sources
       - path: Resources/Assets.xcassets
         buildPhase: resources
+      - path: Resources/Mascots
+        buildPhase: resources
     entitlements:
       path: Resources/GymTracker.entitlements
     settings:

@@ -8,6 +8,10 @@ struct SessionView: View {
 
     @Bindable var session: WorkoutSession
     @Query private var exerciseInfos: [ExerciseInfo]
+    @Query(sort: \WorkoutSession.started, order: .reverse) private var allSessions: [WorkoutSession]
+
+    @AppStorage("totalXP") private var totalXP: Int = 0
+    @AppStorage("weeklyGoal") private var weeklyGoal: Int = 4
 
     @State private var elapsedSeconds: Int = 0
     @State private var timer: Timer?
@@ -18,6 +22,10 @@ struct SessionView: View {
     @State private var restRemaining: Int = 0
     @State private var restTimer: Timer?
     @State private var showRestOverlay = false
+
+    // XP
+    @State private var xpBreakdown: XPBreakdown?
+    @State private var showXPOverlay = false
 
     // Pickers / Sheets
     @State private var showExercisePicker = false
@@ -40,6 +48,9 @@ struct SessionView: View {
             mainContent
             if showRestOverlay {
                 restOverlay
+            }
+            if showXPOverlay, let breakdown = xpBreakdown {
+                xpOverlay(breakdown)
             }
         }
         .onAppear(perform: startElapsedTimer)
@@ -534,6 +545,26 @@ struct SessionView: View {
         session.finished = Date()
         session.caloriesBurned = estimatedCalories
 
+        // Find previous session of same template for XP comparison
+        let previousSession = allSessions.first {
+            $0.templateName == session.templateName && $0.finished != nil
+        }
+
+        // Streak & weekly count for XP bonuses
+        let streak = StreakCalculator.currentStreak(sessions: Array(allSessions))
+        let weekStart = Calendar.current.date(byAdding: .day, value: -7, to: Date())!
+        let weekCount = allSessions.filter { $0.finished != nil && $0.started > weekStart }.count
+
+        // Calculate XP BEFORE inserting (exerciseInfos has current PRs)
+        let breakdown = XPCalculator.calculate(
+            session: session,
+            previousSession: previousSession,
+            exerciseInfos: Array(exerciseInfos),
+            currentStreak: streak,
+            weekSessionCount: weekCount,
+            weeklyGoal: weeklyGoal
+        )
+
         // Insert session into database only when finished
         context.insert(session)
 
@@ -548,7 +579,20 @@ struct SessionView: View {
             }
         }
 
+        // Award XP
+        totalXP = max(0, totalXP + breakdown.total)
+        xpBreakdown = breakdown
+
         stopAllTimers()
+
+        // Show XP overlay
+        withAnimation(.spring(duration: 0.5)) {
+            showXPOverlay = true
+        }
+    }
+
+    private func dismissXPAndFinish() {
+        showXPOverlay = false
         let alreadySaved = customTemplates.contains { $0.name == session.templateName }
         if alreadySaved || session.templateName == "Séance libre" {
             dismiss()
@@ -575,6 +619,85 @@ struct SessionView: View {
             )
             if custom.exercises == nil { custom.exercises = [] }
             custom.exercises?.append(cex)
+        }
+    }
+
+    // MARK: - XP Overlay
+
+    private func xpOverlay(_ breakdown: XPBreakdown) -> some View {
+        let rank = Rank.from(xp: totalXP)
+        return ZStack {
+            Color.black.opacity(0.6)
+                .ignoresSafeArea()
+
+            VStack(spacing: 16) {
+                // Mascot GIF
+                GIFView(name: rank.mascot)
+                    .frame(width: 50, height: 50)
+                    .clipped()
+
+                Text(rank.label)
+                    .font(.title2)
+                    .fontWeight(.black)
+                    .foregroundStyle(.white)
+
+                // XP breakdown
+                VStack(spacing: 6) {
+                    ForEach(breakdown.details, id: \.label) { detail in
+                        HStack(spacing: 8) {
+                            Image(systemName: detail.icon)
+                                .font(.caption)
+                                .foregroundStyle(theme.color.accent)
+                                .frame(width: 20)
+                            Text(detail.label)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text("+\(detail.value)")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundStyle(.green)
+                        }
+                    }
+                    Divider().padding(.vertical, 2)
+                    HStack {
+                        Text("Total")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                        Spacer()
+                        Text("+\(breakdown.total) XP")
+                            .font(.headline)
+                            .fontWeight(.black)
+                            .foregroundStyle(theme.color.accent)
+                    }
+                }
+                .padding(14)
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+
+                Text("\(totalXP) XP au total")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Button {
+                    dismissXPAndFinish()
+                } label: {
+                    Text("Continuer")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(theme.color.gradient)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(28)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 28))
+            .padding(.horizontal, 24)
+            .transition(.scale.combined(with: .opacity))
         }
     }
 

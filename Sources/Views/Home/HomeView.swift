@@ -10,6 +10,8 @@ struct HomeView: View {
     @Query(filter: #Predicate<ExerciseInfo> { $0.isFavorite }) private var favoriteExercises: [ExerciseInfo]
 
     @AppStorage("userName") private var userName: String = ""
+    @AppStorage("totalXP") private var totalXP: Int = 0
+    @AppStorage("weeklyGoal") private var weeklyGoal: Int = 4
     @State private var activeSession: WorkoutSession?
     @State private var showTemplateList = false
     @State private var newTemplate: CustomTemplate?
@@ -31,7 +33,6 @@ struct HomeView: View {
                 VStack(spacing: 16) {
                     // Hero
                     HStack {
-                        // (top spacing handled by safeAreaInset below)
                         VStack(alignment: .leading, spacing: 4) {
                             Text("READY TO LIFT")
                                 .font(.caption)
@@ -43,21 +44,35 @@ struct HomeView: View {
                                 .fontWeight(.black)
                         }
                         Spacer()
-                        VStack(spacing: 2) {
-                            Text("\(weekSessions.count)")
-                                .font(.title)
-                                .fontWeight(.black)
-                                .foregroundStyle(theme.color.accent)
-                            Text("séances / 7j")
+                        // Session goal + rank
+                        VStack(spacing: 6) {
+                            HStack(spacing: 4) {
+                                Text("\(weekSessions.count)/\(weeklyGoal)")
+                                    .font(.title2)
+                                    .fontWeight(.black)
+                                    .foregroundStyle(weekSessions.count >= weeklyGoal ? .green : theme.color.accent)
+                                Image(systemName: weekSessions.count >= weeklyGoal ? "checkmark.seal.fill" : "flame.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(weekSessions.count >= weeklyGoal ? .green : theme.color.accent)
+                            }
+                            Text("séances")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
                         .background(theme.color.accent.opacity(0.12))
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
                     }
                     .padding(.horizontal)
+
+                    // XP / Rank bar
+                    rankBar
+                        .padding(.horizontal)
+
+                    // Streak + week days
+                    streakCard
+                        .padding(.horizontal)
 
                     // Body stats card with body map
                     bodyStatsCard
@@ -511,6 +526,125 @@ struct HomeView: View {
             RoundedRectangle(cornerRadius: 20)
                 .strokeBorder(.quaternary, lineWidth: 0.5)
         )
+    }
+
+    // MARK: - Rank Bar
+
+    private var currentRank: Rank { Rank.from(xp: totalXP) }
+
+    private var rankBar: some View {
+        let rank = currentRank
+        let nextRank = rank.next
+        let xpInRank = totalXP - rank.xpRequired
+        let xpForNext = (nextRank?.xpRequired ?? rank.xpRequired) - rank.xpRequired
+        let progress: Double = xpForNext > 0 ? min(Double(xpInRank) / Double(xpForNext), 1.0) : 1.0
+
+        return HStack(spacing: 12) {
+            // Rank icon
+            Image(systemName: rank.icon)
+                .font(.title3)
+                .foregroundStyle(rank.color)
+                .frame(width: 36, height: 36)
+                .background(rank.color.opacity(0.15))
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(rank.label)
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundStyle(rank.color)
+                    Spacer()
+                    Text("\(totalXP) XP")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+                }
+                // Progress bar
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(.quaternary)
+                            .frame(height: 6)
+                        Capsule()
+                            .fill(rank.color.gradient)
+                            .frame(width: geo.size.width * progress, height: 6)
+                    }
+                }
+                .frame(height: 6)
+
+                if let next = nextRank {
+                    Text("\(next.xpRequired - totalXP) XP avant \(next.label)")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+        .padding(14)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    // MARK: - Streak Card
+
+    private var streakCard: some View {
+        let streak = StreakCalculator.currentStreak(sessions: Array(sessions))
+        let days = StreakCalculator.weekDays(sessions: Array(sessions))
+        let dayLabels = ["L", "M", "M", "J", "V", "S", "D"]
+        let calendar = Calendar.current
+        let todayIndex = (calendar.component(.weekday, from: Date()) + 5) % 7
+
+        return HStack(spacing: 0) {
+            // Flame + streak count
+            VStack(spacing: 4) {
+                ZStack {
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(
+                            streak > 0
+                            ? LinearGradient(colors: [.orange, .red], startPoint: .bottom, endPoint: .top)
+                            : LinearGradient(colors: [.gray.opacity(0.4), .gray.opacity(0.3)], startPoint: .bottom, endPoint: .top)
+                        )
+                        .symbolEffect(.pulse, options: .repeating, isActive: streak > 0)
+                }
+                Text("\(streak)")
+                    .font(.title3)
+                    .fontWeight(.black)
+                    .foregroundStyle(streak > 0 ? .orange : .secondary)
+                Text("JOURS")
+                    .font(.system(size: 7))
+                    .fontWeight(.bold)
+                    .tracking(1)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(width: 70)
+
+            // Week days
+            HStack(spacing: 6) {
+                ForEach(0..<7, id: \.self) { i in
+                    VStack(spacing: 6) {
+                        Text(dayLabels[i])
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(i == todayIndex ? .primary : .secondary)
+
+                        ZStack {
+                            Circle()
+                                .fill(days[i] ? theme.color.accent : Color(.systemGray5))
+                                .frame(width: 28, height: 28)
+                            if days[i] {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(.white)
+                            }
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(14)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
     // MARK: - Body Stats Card
