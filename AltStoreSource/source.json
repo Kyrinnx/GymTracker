@@ -22,6 +22,14 @@
       "screenshotURLs": [],
       "versions": [
         {
+          "version": "1.9.5",
+          "date": "2026-04-13",
+          "localizedDescription": "Taille/âge/activité, alertes poids dangereux, fix XP overlay",
+          "downloadURL": "https://github.com/Kyrinnx/GymTracker/releases/download/v1.9.5/GymTracker.ipa",
+          "size": 13830012,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "1.9.4",
           "date": "2026-04-13",
           "localizedDescription": "Mascottes réassignées aux bons rangs",
