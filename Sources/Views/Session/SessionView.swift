@@ -264,6 +264,16 @@ struct SessionView: View {
                 .onDrag {
                     draggedExercise = exercise
                     return NSItemProvider(object: "\(exercise.order)" as NSString)
+                } preview: {
+                    // Preview arrondi avec ombre pour le drag
+                    Text(exercise.name)
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 14)
+                        .background(.regularMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
                 }
                 .onDrop(of: [.text], delegate: ExerciseDropDelegate(
                     target: exercise,
