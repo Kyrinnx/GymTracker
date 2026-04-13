@@ -307,6 +307,7 @@ struct SettingsView: View {
                     Spacer().frame(height: 40)
                 }
             }
+            .tint(theme.color.accent)
             .navigationTitle("Réglages")
             .task {
                 await notifService.refreshAuthorizationStatus()
