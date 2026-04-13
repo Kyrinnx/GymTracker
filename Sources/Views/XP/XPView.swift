@@ -62,17 +62,24 @@ struct XPView: View {
                     .clipped()
             } else {
                 Image(systemName: rank.icon)
-                    .font(.system(size: 44))
-                    .foregroundStyle(rank.color)
+                    .font(.system(size: 40, weight: .bold))
+                    .foregroundStyle(.white)
                     .frame(width: 100, height: 100)
-                    .background(rank.color.opacity(0.12))
+                    .background(
+                        LinearGradient(
+                            colors: [theme.color.accent, rank.color == .gray ? theme.color.accent.opacity(0.7) : rank.color],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                     .clipShape(Circle())
+                    .shadow(color: theme.color.accent.opacity(0.3), radius: 12, y: 6)
             }
 
             Text(rank.label)
                 .font(.title)
                 .fontWeight(.black)
-                .foregroundStyle(rank.color)
+                .foregroundStyle(theme.color.accent)
 
             Text("\(totalXP) XP")
                 .font(.title3)

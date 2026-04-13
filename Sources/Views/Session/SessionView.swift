@@ -848,15 +848,22 @@ struct SessionView: View {
                 let isHighTier = [Rank.elite, .legende, .titan, .mythique].contains(rank)
                 if isHighTier {
                     GIFView(name: rank.mascot)
-                        .frame(width: 50, height: 50)
+                        .frame(width: 60, height: 60)
                         .clipped()
                 } else {
                     Image(systemName: rank.icon)
-                        .font(.system(size: 30))
-                        .foregroundStyle(rank.color)
-                        .frame(width: 50, height: 50)
-                        .background(rank.color.opacity(0.15))
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 60, height: 60)
+                        .background(
+                            LinearGradient(
+                                colors: [theme.color.accent, rank.color == .gray ? theme.color.accent.opacity(0.7) : rank.color],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
                         .clipShape(Circle())
+                        .shadow(color: theme.color.accent.opacity(0.4), radius: 8, y: 4)
                 }
 
                 Text(rank.label)

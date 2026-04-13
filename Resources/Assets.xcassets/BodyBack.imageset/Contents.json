@@ -1,7 +1,24 @@
 {
   "images" : [
     {
-      "filename" : "body_back.png",
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "light"
+        }
+      ],
+      "filename" : "body_back_light.png",
+      "idiom" : "universal",
+      "scale" : "3x"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "body_back_dark.png",
       "idiom" : "universal",
       "scale" : "3x"
     }

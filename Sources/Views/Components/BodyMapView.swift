@@ -27,7 +27,7 @@ struct BodyMapView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
 
-                // Muscle overlays — darken keeps colored muscles visible through all layers
+                // Muscle overlays — bg matches body, darken reveals colored highlights
                 ForEach(activeGroups, id: \.self) { group in
                     if let name = overlayName(for: group) {
                         Image(name)

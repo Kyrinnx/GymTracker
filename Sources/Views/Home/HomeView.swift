@@ -649,48 +649,61 @@ struct HomeView: View {
 
     // MARK: - Body Stats Card
     private var bodyStatsCard: some View {
-        HStack(spacing: 16) {
-            // Body map
-            BodyMapView(activeGroups: recentGroups)
-                .frame(width: 140, height: 220)
+        VStack(spacing: 10) {
+            HStack(spacing: 14) {
+                // Body map on the left
+                ZStack {
+                    RadialGradient(
+                        colors: [theme.color.accent.opacity(0.10), .clear],
+                        center: .center,
+                        startRadius: 10,
+                        endRadius: 80
+                    )
+                    BodyMapView(activeGroups: recentGroups)
+                        .frame(width: 100, height: 150)
+                }
+                .frame(width: 110, height: 160)
 
-            // Stats
-            VStack(spacing: 10) {
-                HStack(spacing: 10) {
-                    statBox(value: lastWeight.map { String(format: "%.1f", $0.kg) } ?? "—", label: "KG", tooltip: "Poids actuel")
-                    statBox(value: lastWeight?.bodyFat.map { String(format: "%.1f", $0) } ?? "—", label: "% BF", tooltip: "Taux de masse grasse")
+                // Stats on the right
+                VStack(spacing: 8) {
+                    HStack(spacing: 8) {
+                        statBox(value: lastWeight.map { String(format: "%.1f", $0.kg) } ?? "—", label: "KG", tooltip: "Poids actuel")
+                        statBox(value: lastWeight?.bodyFat.map { String(format: "%.1f", $0) } ?? "—", label: "% BF", tooltip: "Taux de masse grasse")
+                    }
+                    HStack(spacing: 8) {
+                        statBox(value: lastWeight?.leanMass.map { String(format: "%.1f", $0) } ?? "—",
+                                label: "MM", tooltip: "Masse maigre (poids - gras)")
+                        statBox(value: lastWeight?.bmr.map { "\(Int($0))" } ?? "—",
+                                label: "MB", tooltip: "Métabolisme basal (kcal/jour)")
+                    }
                 }
-                HStack(spacing: 10) {
-                    statBox(value: lastWeight?.leanMass.map { String(format: "%.1f", $0) } ?? "—",
-                            label: "MM", tooltip: "Masse maigre (poids - gras)")
-                    statBox(value: lastWeight?.bmr.map { "\(Int($0))" } ?? "—",
-                            label: "MB", tooltip: "Métabolisme basal (kcal/jour)")
-                }
-                if !recentGroups.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 4) {
-                            ForEach(recentGroups) { group in
-                                Text(group.label)
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(theme.color.accent.opacity(0.12))
-                                    .foregroundStyle(theme.color.accent)
-                                    .clipShape(Capsule())
-                            }
+                .frame(maxWidth: .infinity)
+            }
+
+            if !recentGroups.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) {
+                        ForEach(recentGroups) { group in
+                            Text(group.label)
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(theme.color.accent.opacity(0.12))
+                                .foregroundStyle(theme.color.accent)
+                                .clipShape(Capsule())
                         }
                     }
-                } else {
-                    Text("Aucun muscle ces 7 derniers jours")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
                 }
+            } else {
+                Text("Aucun muscle ces 7 derniers jours")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
         }
-        .padding(18)
+        .padding(14)
         .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .clipShape(RoundedRectangle(cornerRadius: 18))
         .padding(.horizontal)
     }
 
@@ -988,12 +1001,13 @@ private struct AIImportSheet: View {
         Réponds UNIQUEMENT avec du JSON valide, sans texte avant ni après.
 
         Si c'est UNE seule séance :
-        {"name": "Nom", "subtitle": "Description", "exercises": [{"name": "Nom exercice", "muscle": "chest", "sets": 4, "reps": 10, "rest": 90}]}
+        {"name": "Nom", "subtitle": "Description", "exercises": [{"name": "Nom exercice", "muscle": "chest", "sets": 4, "reps": "8-12", "rest": 90}]}
 
         Si c'est PLUSIEURS séances (programme complet) :
         [{"name": "Séance 1", "subtitle": "...", "exercises": [...]}, {"name": "Séance 2", "subtitle": "...", "exercises": [...]}]
 
         Valeurs possibles pour "muscle" : chest, back, shoulders, arms, legs, core.
+        "reps" peut être un nombre (10) ou une fourchette ("8-12", "10-15"). Utilise des fourchettes quand c'est pertinent.
         "rest" est en secondes (30, 45, 60, 90, 120, 150, 180).
         """
     }
@@ -1189,16 +1203,31 @@ private struct AIImportSheet: View {
                 let muscleRaw = exJSON["muscle"] as? String ?? "chest"
                 let muscleGroup = validMuscles.contains(muscleRaw) ? MuscleGroup(rawValue: muscleRaw)! : .chest
                 let sets = exJSON["sets"] as? Int ?? 3
-                let reps = exJSON["reps"] as? Int ?? 10
                 let rest = exJSON["rest"] as? Int ?? 90
+
+                // reps can be Int (10) or String ("8-12")
+                let repsStr: String
+                let defaultRepsValue: Int
+                if let repsInt = exJSON["reps"] as? Int {
+                    repsStr = "\(repsInt)"
+                    defaultRepsValue = repsInt
+                } else if let repsString = exJSON["reps"] as? String {
+                    repsStr = repsString
+                    // Use the first number as default reps
+                    let digits = repsString.components(separatedBy: CharacterSet.decimalDigits.inverted).first(where: { !$0.isEmpty })
+                    defaultRepsValue = Int(digits ?? "10") ?? 10
+                } else {
+                    repsStr = "10"
+                    defaultRepsValue = 10
+                }
 
                 let exercise = CustomTemplateExercise(
                     name: exName,
                     muscleGroup: muscleGroup,
-                    scheme: "\(sets)x\(reps)",
+                    scheme: "\(sets)x\(repsStr)",
                     restSeconds: rest,
                     defaultSets: sets,
-                    defaultReps: reps,
+                    defaultReps: defaultRepsValue,
                     order: index
                 )
                 if template.exercises == nil { template.exercises = [] }
