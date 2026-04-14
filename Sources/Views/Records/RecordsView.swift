@@ -125,6 +125,7 @@ struct RecordsView: View {
                 icon: "chart.bar.fill"
             )
         }
+        .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal)
     }
 
@@ -133,16 +134,21 @@ struct RecordsView: View {
             Image(systemName: icon)
                 .font(.caption)
                 .foregroundStyle(theme.color.accent)
+                .frame(height: 14)
             Text(value)
                 .font(.title3)
                 .fontWeight(.black)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
             Text(label)
                 .font(.caption2)
                 .fontWeight(.bold)
                 .tracking(1)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(14)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 18))
@@ -426,10 +432,14 @@ struct RecordsView: View {
                 Text("\(weekSessions.count)/\(weeklyGoal)")
                     .font(.title3).fontWeight(.black)
                     .foregroundStyle(weekSessions.count >= weeklyGoal ? .green : theme.color.accent)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
                 Text("SÉANCES / SEM.")
                     .font(.caption2).fontWeight(.bold).tracking(1).foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(14)
             .background(.regularMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 18))
@@ -446,12 +456,15 @@ struct RecordsView: View {
                 Text(weekSessions.count >= weeklyGoal ? "OBJECTIF ATTEINT" : "CONTINUE")
                     .font(.caption2).fontWeight(.bold).tracking(1)
                     .foregroundStyle(weekSessions.count >= weeklyGoal ? .green : .secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(14)
             .background(.regularMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 18))
         }
+        .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal)
     }
 

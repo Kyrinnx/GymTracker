@@ -7,17 +7,24 @@ import SwiftData
 enum AutoBackupService {
 
     private static let rootFolderName = "GymTracker Backups"
-    private static let backupsFolderName = "Sauvegardes"
-    private static let safetyFolderName = "Sécurité"
+    private static let sauvegardesRootName = "Sauvegardes"
+    private static let generalBackupFolderName = "Sauvegarde Générale"
+    private static let safetyBackupFolderName = "Sauvegarde Sécuritaire"
     private static let lastBackupKey = "lastAutoBackupDate"
     private static let cloudBookmarkKey = "cloudBackupFolderBookmark"
+    private static let folderMigrationKey = "backupFolderMigration_v2"
     private static let maxBackupsToKeep = 30
+
+    // Legacy names, kept only for migration from the old flat structure
+    private static let legacyBackupsFolderName = "Sauvegardes"
+    private static let legacySafetyFolderName = "Sécurité"
 
     // MARK: - Public API
 
     /// Performs an automatic backup if none has been done today. Safe to call from app launch.
     /// Also copies to the user's chosen iCloud Drive folder if configured.
     static func runDailyBackupIfNeeded(context: ModelContext) {
+        migrateFolderStructureIfNeeded()
         let lastDate = UserDefaults.standard.object(forKey: lastBackupKey) as? Date
         if let last = lastDate, Calendar.current.isDateInToday(last) {
             return
@@ -90,7 +97,8 @@ enum AutoBackupService {
         UserDefaults.standard.bool(forKey: "lastCloudSyncFailed")
     }
 
-    /// Copies a backup file to the user's chosen cloud folder, inside a "Sauvegardes" subfolder.
+    /// Copies a backup file to the user's chosen cloud folder, inside
+    /// "Sauvegardes/Sauvegarde Générale/".
     private static func copyToCloudFolder(_ localURL: URL) {
         guard let folderURL = cloudFolderURL() else { return }
         guard folderURL.startAccessingSecurityScopedResource() else {
@@ -99,7 +107,9 @@ enum AutoBackupService {
         }
         defer { folderURL.stopAccessingSecurityScopedResource() }
 
-        let cloudBackups = folderURL.appendingPathComponent(backupsFolderName, isDirectory: true)
+        let cloudBackups = folderURL
+            .appendingPathComponent(sauvegardesRootName, isDirectory: true)
+            .appendingPathComponent(generalBackupFolderName, isDirectory: true)
         try? FileManager.default.createDirectory(at: cloudBackups, withIntermediateDirectories: true)
 
         let target = cloudBackups.appendingPathComponent(localURL.lastPathComponent)
@@ -169,19 +179,29 @@ enum AutoBackupService {
     }
 
     /// Documents/GymTracker Backups/Sauvegardes/
-    static func backupsFolderURL() -> URL? {
+    static func sauvegardesRootURL() -> URL? {
         guard let root = rootFolderURL() else { return nil }
-        let folder = root.appendingPathComponent(backupsFolderName, isDirectory: true)
+        let folder = root.appendingPathComponent(sauvegardesRootName, isDirectory: true)
         if !FileManager.default.fileExists(atPath: folder.path) {
             try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         }
         return folder
     }
 
-    /// Documents/GymTracker Backups/Sécurité/
+    /// Documents/GymTracker Backups/Sauvegardes/Sauvegarde Générale/
+    static func backupsFolderURL() -> URL? {
+        guard let parent = sauvegardesRootURL() else { return nil }
+        let folder = parent.appendingPathComponent(generalBackupFolderName, isDirectory: true)
+        if !FileManager.default.fileExists(atPath: folder.path) {
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        }
+        return folder
+    }
+
+    /// Documents/GymTracker Backups/Sauvegardes/Sauvegarde Sécuritaire/
     static func safetyFolderURL() -> URL? {
-        guard let root = rootFolderURL() else { return nil }
-        let folder = root.appendingPathComponent(safetyFolderName, isDirectory: true)
+        guard let parent = sauvegardesRootURL() else { return nil }
+        let folder = parent.appendingPathComponent(safetyBackupFolderName, isDirectory: true)
         if !FileManager.default.fileExists(atPath: folder.path) {
             try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         }
@@ -239,11 +259,13 @@ enum AutoBackupService {
         try? FileManager.default.removeItem(at: localTarget)
         try FileManager.default.moveItem(at: tempURL, to: localTarget)
 
-        // Copy to iCloud Drive → Sécurité/
+        // Copy to iCloud Drive → Sauvegardes/Sauvegarde Sécuritaire/
         if let cloudFolder = cloudFolderURL() {
             if cloudFolder.startAccessingSecurityScopedResource() {
                 defer { cloudFolder.stopAccessingSecurityScopedResource() }
-                let cloudSafety = cloudFolder.appendingPathComponent(safetyFolderName, isDirectory: true)
+                let cloudSafety = cloudFolder
+                    .appendingPathComponent(sauvegardesRootName, isDirectory: true)
+                    .appendingPathComponent(safetyBackupFolderName, isDirectory: true)
                 try? FileManager.default.createDirectory(at: cloudSafety, withIntermediateDirectories: true)
                 let cloudTarget = cloudSafety.appendingPathComponent(filename)
                 try? FileManager.default.removeItem(at: cloudTarget)
@@ -252,6 +274,126 @@ enum AutoBackupService {
         }
 
         return localTarget
+    }
+
+    // MARK: - Folder Migration (v1 flat → v2 nested)
+
+    /// One-time migration from the old flat structure (Sauvegardes/ + Sécurité/ as siblings)
+    /// to the new nested structure (Sauvegardes/Sauvegarde Générale/ + Sauvegardes/Sauvegarde Sécuritaire/).
+    /// Runs local + iCloud migrations. Idempotent — safe to call multiple times.
+    static func migrateFolderStructureIfNeeded() {
+        guard !UserDefaults.standard.bool(forKey: folderMigrationKey) else { return }
+
+        migrateLocalFolderStructure()
+        migrateCloudFolderStructure()
+
+        UserDefaults.standard.set(true, forKey: folderMigrationKey)
+    }
+
+    private static func migrateLocalFolderStructure() {
+        guard let root = rootFolderURL() else { return }
+        let fm = FileManager.default
+
+        let legacyBackups = root.appendingPathComponent(legacyBackupsFolderName, isDirectory: true)
+        let legacySafety = root.appendingPathComponent(legacySafetyFolderName, isDirectory: true)
+
+        // If the legacy "Sauvegardes" folder exists AND contains .json files directly (flat),
+        // move those files into the new "Sauvegarde Générale" subfolder.
+        if fm.fileExists(atPath: legacyBackups.path) {
+            let contents = (try? fm.contentsOfDirectory(
+                at: legacyBackups,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            )) ?? []
+            let flatJSONFiles = contents.filter { $0.pathExtension.lowercased() == "json" }
+            if !flatJSONFiles.isEmpty {
+                guard let newGeneral = backupsFolderURL() else { return }
+                for file in flatJSONFiles {
+                    let target = newGeneral.appendingPathComponent(file.lastPathComponent)
+                    try? fm.removeItem(at: target)
+                    try? fm.moveItem(at: file, to: target)
+                }
+            }
+        }
+
+        // Migrate the old sibling "Sécurité" folder into Sauvegardes/Sauvegarde Sécuritaire/
+        if fm.fileExists(atPath: legacySafety.path) {
+            let contents = (try? fm.contentsOfDirectory(
+                at: legacySafety,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            )) ?? []
+            if !contents.isEmpty {
+                guard let newSafety = safetyFolderURL() else { return }
+                for file in contents where file.pathExtension.lowercased() == "json" {
+                    let target = newSafety.appendingPathComponent(file.lastPathComponent)
+                    try? fm.removeItem(at: target)
+                    try? fm.moveItem(at: file, to: target)
+                }
+            }
+            // Remove the now-empty legacy Sécurité folder
+            let remaining = (try? fm.contentsOfDirectory(atPath: legacySafety.path)) ?? []
+            if remaining.isEmpty {
+                try? fm.removeItem(at: legacySafety)
+            }
+        }
+    }
+
+    private static func migrateCloudFolderStructure() {
+        guard let cloudRoot = cloudFolderURL() else { return }
+        guard cloudRoot.startAccessingSecurityScopedResource() else { return }
+        defer { cloudRoot.stopAccessingSecurityScopedResource() }
+
+        let fm = FileManager.default
+        let legacyCloudBackups = cloudRoot.appendingPathComponent(legacyBackupsFolderName, isDirectory: true)
+        let legacyCloudSafety = cloudRoot.appendingPathComponent(legacySafetyFolderName, isDirectory: true)
+
+        // New nested paths inside the user's iCloud folder
+        let newCloudBackupsParent = cloudRoot
+            .appendingPathComponent(sauvegardesRootName, isDirectory: true)
+        let newCloudGeneral = newCloudBackupsParent
+            .appendingPathComponent(generalBackupFolderName, isDirectory: true)
+        let newCloudSafety = newCloudBackupsParent
+            .appendingPathComponent(safetyBackupFolderName, isDirectory: true)
+
+        // Move flat JSON files out of legacy Sauvegardes/
+        if fm.fileExists(atPath: legacyCloudBackups.path) {
+            let contents = (try? fm.contentsOfDirectory(
+                at: legacyCloudBackups,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            )) ?? []
+            let flatJSONFiles = contents.filter { $0.pathExtension.lowercased() == "json" }
+            if !flatJSONFiles.isEmpty {
+                try? fm.createDirectory(at: newCloudGeneral, withIntermediateDirectories: true)
+                for file in flatJSONFiles {
+                    let target = newCloudGeneral.appendingPathComponent(file.lastPathComponent)
+                    try? fm.removeItem(at: target)
+                    try? fm.moveItem(at: file, to: target)
+                }
+            }
+        }
+
+        // Move legacy Sécurité/ into Sauvegardes/Sauvegarde Sécuritaire/
+        if fm.fileExists(atPath: legacyCloudSafety.path) {
+            let contents = (try? fm.contentsOfDirectory(
+                at: legacyCloudSafety,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            )) ?? []
+            if !contents.isEmpty {
+                try? fm.createDirectory(at: newCloudSafety, withIntermediateDirectories: true)
+                for file in contents where file.pathExtension.lowercased() == "json" {
+                    let target = newCloudSafety.appendingPathComponent(file.lastPathComponent)
+                    try? fm.removeItem(at: target)
+                    try? fm.moveItem(at: file, to: target)
+                }
+            }
+            let remaining = (try? fm.contentsOfDirectory(atPath: legacyCloudSafety.path)) ?? []
+            if remaining.isEmpty {
+                try? fm.removeItem(at: legacyCloudSafety)
+            }
+        }
     }
 
     private static func pruneOldBackups() throws {

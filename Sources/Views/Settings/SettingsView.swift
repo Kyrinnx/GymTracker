@@ -463,13 +463,13 @@ struct SettingsView: View {
 
     private func safeWipe() {
         do {
-            // 1. Safety backup in dedicated "Sécurité" folder (local + iCloud Drive)
+            // 1. Safety backup in dedicated "Sauvegarde Sécuritaire" folder (local + iCloud Drive)
             _ = try AutoBackupService.safetyBackup(context: context)
             // 2. Wipe all data
             try DataExportService.wipeAll(context: context)
             totalXP = 0
             refreshLastBackupDisplay()
-            importMessage = "Données effacées ✅\n\nUne sauvegarde de sécurité a été créée dans\u{00A0}:\n• iPhone\u{00A0}: Fichiers → GymTracker → Sécurité\n• iCloud Drive → ton dossier → Sécurité\n\nPour restaurer\u{00A0}: Réglages → Données → Importer un fichier"
+            importMessage = "Données effacées ✅\n\nUne sauvegarde de sécurité a été créée dans\u{00A0}:\n• iPhone\u{00A0}: Fichiers → GymTracker → Sauvegardes → Sauvegarde Sécuritaire\n• iCloud Drive → ton dossier → Sauvegardes → Sauvegarde Sécuritaire\n\nPour restaurer\u{00A0}: Réglages → Données → Importer un fichier"
         } catch {
             importMessage = "Échec\u{00A0}: \(error.localizedDescription)"
         }
