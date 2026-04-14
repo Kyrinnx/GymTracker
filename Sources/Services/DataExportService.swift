@@ -25,6 +25,7 @@ struct SessionDTO: Codable {
 struct ExerciseDTO: Codable {
     var name: String
     var muscleGroup: String
+    var equipmentType: String?
     var scheme: String
     var restSeconds: Int
     var order: Int
@@ -55,6 +56,7 @@ struct CustomTemplateDTO: Codable {
 struct CustomTemplateExerciseDTO: Codable {
     var name: String
     var muscleGroup: String
+    var equipmentType: String?
     var scheme: String
     var restSeconds: Int
     var defaultSets: Int
@@ -92,6 +94,7 @@ enum DataExportService {
                     ExerciseDTO(
                         name: ex.name,
                         muscleGroup: ex.muscleGroup,
+                        equipmentType: ex.equipmentType.isEmpty ? nil : ex.equipmentType,
                         scheme: ex.scheme,
                         restSeconds: ex.restSeconds,
                         order: ex.order,
@@ -112,7 +115,9 @@ enum DataExportService {
                 name: tpl.name, subtitle: tpl.subtitle, order: tpl.order,
                 exercises: tpl.exercisesArray.map { ex in
                     CustomTemplateExerciseDTO(
-                        name: ex.name, muscleGroup: ex.muscleGroup, scheme: ex.scheme,
+                        name: ex.name, muscleGroup: ex.muscleGroup,
+                        equipmentType: ex.equipmentType.isEmpty ? nil : ex.equipmentType,
+                        scheme: ex.scheme,
                         restSeconds: ex.restSeconds, defaultSets: ex.defaultSets,
                         defaultReps: ex.defaultReps, order: ex.order
                     )
@@ -166,7 +171,8 @@ enum DataExportService {
             context.insert(session)
             for ex in s.exercises {
                 let group = MuscleGroup(rawValue: ex.muscleGroup) ?? .chest
-                let entry = ExerciseEntry(name: ex.name, muscleGroup: group, scheme: ex.scheme, restSeconds: ex.restSeconds, order: ex.order)
+                let eqType = ex.equipmentType.flatMap { EquipmentType(rawValue: $0) }
+                let entry = ExerciseEntry(name: ex.name, muscleGroup: group, equipment: eqType, scheme: ex.scheme, restSeconds: ex.restSeconds, order: ex.order)
                 if entry.sets == nil { entry.sets = [] }
                 for st in ex.sets {
                     entry.sets?.append(WorkoutSet(kg: st.kg, reps: st.reps, done: st.done, order: st.order))
@@ -186,8 +192,9 @@ enum DataExportService {
             if template.exercises == nil { template.exercises = [] }
             for ex in tpl.exercises {
                 let group = MuscleGroup(rawValue: ex.muscleGroup) ?? .chest
+                let eqType = ex.equipmentType.flatMap { EquipmentType(rawValue: $0) }
                 template.exercises?.append(CustomTemplateExercise(
-                    name: ex.name, muscleGroup: group, scheme: ex.scheme,
+                    name: ex.name, muscleGroup: group, equipment: eqType, scheme: ex.scheme,
                     restSeconds: ex.restSeconds, defaultSets: ex.defaultSets,
                     defaultReps: ex.defaultReps, order: ex.order
                 ))

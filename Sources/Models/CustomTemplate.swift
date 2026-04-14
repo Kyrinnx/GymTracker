@@ -22,15 +22,17 @@ final class CustomTemplate {
 final class CustomTemplateExercise {
     var name: String = ""
     var muscleGroup: String = "chest"
+    var equipmentType: String = ""
     var scheme: String = ""
     var restSeconds: Int = 90
     var defaultSets: Int = 3
     var defaultReps: Int = 10
     var order: Int = 0
 
-    init(name: String, muscleGroup: MuscleGroup, scheme: String = "", restSeconds: Int = 90, defaultSets: Int = 3, defaultReps: Int = 10, order: Int = 0) {
+    init(name: String, muscleGroup: MuscleGroup, equipment: EquipmentType? = nil, scheme: String = "", restSeconds: Int = 90, defaultSets: Int = 3, defaultReps: Int = 10, order: Int = 0) {
         self.name = name
         self.muscleGroup = muscleGroup.rawValue
+        self.equipmentType = equipment?.rawValue ?? ""
         self.scheme = scheme
         self.restSeconds = restSeconds
         self.defaultSets = defaultSets
@@ -39,4 +41,5 @@ final class CustomTemplateExercise {
     }
 
     var group: MuscleGroup { MuscleGroup(rawValue: muscleGroup) ?? .chest }
+    var equipment: EquipmentType? { EquipmentType(rawValue: equipmentType) }
 }

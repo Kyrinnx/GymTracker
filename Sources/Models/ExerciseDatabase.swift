@@ -20,16 +20,103 @@ final class ExerciseInfo {
     var group: MuscleGroup { MuscleGroup(rawValue: muscleGroup) ?? .chest }
 }
 
+// MARK: - Exercise Definition (base name + compatible equipment)
+struct ExerciseDefinition {
+    let name: String
+    let equipment: [EquipmentType]
+}
+
 // MARK: - Static Exercise Library
 struct ExerciseLibrary {
-    static let exercises: [MuscleGroup: [String]] = [
-        .chest: ["Développé couché barre", "Développé incliné haltères", "Développé couché haltères", "Développé incliné barre", "Développé machine guidée", "Écarté poulie", "Écarté machine", "Écarté haltères incliné", "Dips pecs", "Pompes", "Pullover haltère"],
-        .back: ["Rowing barre", "Rowing haltère un bras", "Tirage vertical prise large", "Tirage vertical prise serrée", "Tirage horizontal câble", "Pullover poulie", "Rowing machine", "Rowing T-barre", "Soulevé de terre", "Pull-ups", "Chin-ups"],
-        .shoulders: ["Développé militaire haltères", "Développé militaire barre", "Développé machine épaules", "Élévations latérales", "Élévations latérales câble", "Face pull", "Oiseau", "Oiseau machine", "Shrug barre", "Shrug haltères", "Arnold press"],
-        .arms: ["Curl haltères", "Curl barre EZ", "Curl barre droite", "Curl marteau", "Curl poulie", "Curl concentré", "Curl incliné", "Dips triceps", "Triceps poulie corde", "Triceps poulie barre", "Extensions triceps overhead", "Barre au front", "Kick-back triceps"],
-        .legs: ["Squat barre", "Squat goblet", "Presse à cuisses", "Leg extension", "Leg curl allongé", "Leg curl assis", "Fentes bulgares", "Fentes marchées", "Squat bulgare", "Mollets debout", "Mollets assis", "Soulevé de terre roumain", "Hip thrust", "Hack squat", "Adducteurs machine", "Abducteurs machine"],
-        .core: ["Crunch câble", "Crunch machine", "Planche", "Planche latérale", "Relevé de jambes", "Relevé de jambes suspendu", "Ab wheel", "Gainage latéral", "Russian twist", "Pallof press"],
+
+    static let catalog: [MuscleGroup: [ExerciseDefinition]] = [
+        .chest: [
+            ExerciseDefinition(name: "Développé couché", equipment: [.barre, .halteres, .machine]),
+            ExerciseDefinition(name: "Développé incliné", equipment: [.barre, .halteres, .machine]),
+            ExerciseDefinition(name: "Développé décliné", equipment: [.barre, .halteres]),
+            ExerciseDefinition(name: "Écarté", equipment: [.halteres, .poulie, .machine]),
+            ExerciseDefinition(name: "Pullover", equipment: [.halteres, .poulie]),
+            ExerciseDefinition(name: "Butterfly", equipment: [.machine]),
+            ExerciseDefinition(name: "Dips pecs", equipment: [.pdc]),
+            ExerciseDefinition(name: "Pompes", equipment: [.pdc]),
+        ],
+        .back: [
+            ExerciseDefinition(name: "Rowing", equipment: [.barre, .halteres, .machine]),
+            ExerciseDefinition(name: "Rowing T-barre", equipment: [.barre]),
+            ExerciseDefinition(name: "Tirage vertical", equipment: [.poulie, .machine]),
+            ExerciseDefinition(name: "Tirage horizontal", equipment: [.poulie, .machine]),
+            ExerciseDefinition(name: "Pullover dos", equipment: [.poulie]),
+            ExerciseDefinition(name: "Soulevé de terre", equipment: [.barre]),
+            ExerciseDefinition(name: "Tractions", equipment: [.pdc]),
+            ExerciseDefinition(name: "Chin-ups", equipment: [.pdc]),
+        ],
+        .shoulders: [
+            ExerciseDefinition(name: "Développé militaire", equipment: [.barre, .halteres, .machine]),
+            ExerciseDefinition(name: "Élévation latérale", equipment: [.halteres, .poulie, .machine]),
+            ExerciseDefinition(name: "Élévation frontale", equipment: [.halteres, .poulie]),
+            ExerciseDefinition(name: "Face pull", equipment: [.poulie]),
+            ExerciseDefinition(name: "Oiseau", equipment: [.halteres, .poulie, .machine]),
+            ExerciseDefinition(name: "Shrug", equipment: [.barre, .halteres, .machine]),
+            ExerciseDefinition(name: "Arnold press", equipment: [.halteres]),
+        ],
+        .arms: [
+            ExerciseDefinition(name: "Curl biceps", equipment: [.barre, .halteres, .poulie, .machine]),
+            ExerciseDefinition(name: "Curl marteau", equipment: [.halteres]),
+            ExerciseDefinition(name: "Curl concentré", equipment: [.halteres]),
+            ExerciseDefinition(name: "Curl incliné", equipment: [.halteres]),
+            ExerciseDefinition(name: "Extension triceps", equipment: [.poulie, .halteres]),
+            ExerciseDefinition(name: "Triceps overhead", equipment: [.halteres, .poulie]),
+            ExerciseDefinition(name: "Barre au front", equipment: [.barre]),
+            ExerciseDefinition(name: "Kick-back", equipment: [.halteres]),
+            ExerciseDefinition(name: "Dips triceps", equipment: [.pdc]),
+        ],
+        .legs: [
+            ExerciseDefinition(name: "Squat", equipment: [.barre, .machine, .halteres]),
+            ExerciseDefinition(name: "Presse à cuisses", equipment: [.machine]),
+            ExerciseDefinition(name: "Leg extension", equipment: [.machine]),
+            ExerciseDefinition(name: "Leg curl", equipment: [.machine]),
+            ExerciseDefinition(name: "Fentes", equipment: [.barre, .halteres, .pdc]),
+            ExerciseDefinition(name: "Fentes bulgares", equipment: [.halteres, .barre, .pdc]),
+            ExerciseDefinition(name: "Soulevé de terre roumain", equipment: [.barre, .halteres]),
+            ExerciseDefinition(name: "Hip thrust", equipment: [.barre, .machine]),
+            ExerciseDefinition(name: "Hack squat", equipment: [.machine]),
+            ExerciseDefinition(name: "Mollets debout", equipment: [.machine, .barre]),
+            ExerciseDefinition(name: "Mollets assis", equipment: [.machine]),
+            ExerciseDefinition(name: "Adducteurs", equipment: [.machine]),
+            ExerciseDefinition(name: "Abducteurs", equipment: [.machine]),
+        ],
+        .core: [
+            ExerciseDefinition(name: "Crunch", equipment: [.machine, .poulie, .pdc]),
+            ExerciseDefinition(name: "Planche", equipment: [.pdc]),
+            ExerciseDefinition(name: "Relevé de jambes", equipment: [.pdc]),
+            ExerciseDefinition(name: "Ab wheel", equipment: [.pdc]),
+            ExerciseDefinition(name: "Gainage latéral", equipment: [.pdc]),
+            ExerciseDefinition(name: "Russian twist", equipment: [.halteres, .pdc]),
+            ExerciseDefinition(name: "Pallof press", equipment: [.poulie]),
+        ],
     ]
+
+    /// Flat list of all exercise definitions
+    static var allDefinitions: [(def: ExerciseDefinition, group: MuscleGroup)] {
+        catalog.flatMap { group, defs in
+            defs.map { (def: $0, group: group) }
+        }
+    }
+
+    /// Find compatible equipment for an exercise name
+    static func equipmentFor(name: String, group: MuscleGroup) -> [EquipmentType] {
+        catalog[group]?.first { $0.name == name }?.equipment ?? EquipmentType.allCases
+    }
+
+    // MARK: - Legacy compatibility
+    /// Old-style flat dict for seeding ExerciseInfo and backward compat
+    static let exercises: [MuscleGroup: [String]] = {
+        var result: [MuscleGroup: [String]] = [:]
+        for (group, defs) in catalog {
+            result[group] = defs.map(\.name)
+        }
+        return result
+    }()
 
     static var allExercises: [(name: String, group: MuscleGroup)] {
         exercises.flatMap { group, names in
