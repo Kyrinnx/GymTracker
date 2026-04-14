@@ -781,6 +781,10 @@ struct SessionView: View {
 
         stopAllTimers()
 
+        // Auto-backup right after a session is completed — captures the new data
+        // before the app can be killed or the device rebooted.
+        AutoBackupService.backupAfterSessionCompletion(context: context)
+
         // Show XP overlay
         withAnimation(.spring(duration: 0.5)) {
             showXPOverlay = true

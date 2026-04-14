@@ -49,6 +49,39 @@ enum AutoBackupService {
         return url
     }
 
+    /// Forces a backup right after a session is completed.
+    /// No throttle — a finished session is a rare, important event and we always
+    /// want the new data captured even if another backup ran earlier the same day.
+    static func backupAfterSessionCompletion(context: ModelContext) {
+        performSilentBackup(context: context, reason: "post-session")
+    }
+
+    /// Runs a backup when the app is moving to the background, as a safety net for
+    /// off-session changes (profile edits, custom templates, weight entries, etc.).
+    /// Throttled to 30 minutes to avoid spamming on every app-switcher swipe or
+    /// Control Center pull.
+    static func backupOnBackgroundIfNeeded(context: ModelContext) {
+        let lastDate = UserDefaults.standard.object(forKey: lastBackupKey) as? Date
+        if let last = lastDate, Date().timeIntervalSince(last) < 30 * 60 {
+            return
+        }
+        performSilentBackup(context: context, reason: "background")
+    }
+
+    /// Shared implementation for backups triggered by system events (session end,
+    /// background transition). Failures are logged but never thrown — these paths
+    /// must not crash the app or block the UI.
+    private static func performSilentBackup(context: ModelContext, reason: String) {
+        do {
+            let url = try performBackup(context: context, automatic: true)
+            UserDefaults.standard.set(Date(), forKey: lastBackupKey)
+            try pruneOldBackups()
+            copyToCloudFolder(url)
+        } catch {
+            print("⚠️ \(reason) backup failed: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Cloud Folder (security-scoped bookmark)
 
     /// Saves a user-chosen folder URL as a security-scoped bookmark.

@@ -95,6 +95,10 @@ struct ExerciseLibraryView: View {
                         }
                     }
                 }
+                // Spacer row so the last exercises scroll above the custom tab bar
+                Section {} footer: {
+                    Color.clear.frame(height: 60)
+                }
             }
             .listStyle(.plain)
             .searchable(text: $searchText, prompt: "Rechercher un exercice")

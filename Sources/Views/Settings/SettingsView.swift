@@ -35,6 +35,9 @@ struct SettingsView: View {
     @State private var lastBackupDisplay: String = ""
     @State private var showFolderPicker = false
     @State private var cloudFolderConfigured = AutoBackupService.isCloudFolderConfigured
+    // Reactive mirror of AutoBackupService.lastCloudSyncFailed — lets SwiftUI
+    // re-render the status block when a background copy succeeds or fails.
+    @AppStorage("lastCloudSyncFailed") private var cloudSyncFailed: Bool = false
 
     private let weekdayLabels: [(Int, String)] = [
         (2, "L"), (3, "M"), (4, "M"), (5, "J"), (6, "V"), (7, "S"), (1, "D")
@@ -211,16 +214,49 @@ struct SettingsView: View {
                 Section {
                     // iCloud status — en premier pour que ce soit visible
                     if cloudFolderConfigured {
-                        HStack {
-                            Image(systemName: AutoBackupService.lastCloudSyncFailed ? "exclamationmark.icloud.fill" : "checkmark.icloud.fill")
-                                .foregroundStyle(AutoBackupService.lastCloudSyncFailed ? .orange : .green)
-                                .font(.title3)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(AutoBackupService.lastCloudSyncFailed ? "Sync iCloud en erreur" : "iCloud Drive activé")
-                                    .font(.subheadline.bold())
-                                Text(AutoBackupService.lastCloudSyncFailed ? "Reconfigure le dossier ci-dessous" : "Tes données sont sauvegardées dans le cloud")
-                                    .font(.caption)
-                                    .foregroundStyle(AutoBackupService.lastCloudSyncFailed ? .orange : .secondary)
+                        if cloudSyncFailed {
+                            // Failed state — prominent red background + retry button
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack(alignment: .top, spacing: 12) {
+                                    Image(systemName: "exclamationmark.icloud.fill")
+                                        .foregroundStyle(.red)
+                                        .font(.title2)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Sync iCloud en erreur")
+                                            .font(.subheadline.bold())
+                                            .foregroundStyle(.red)
+                                        Text("La dernière copie vers ton dossier iCloud Drive a échoué. Réessaie ou reconfigure le dossier.")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                }
+                                Button {
+                                    retryCloudSync()
+                                } label: {
+                                    Label("Réessayer maintenant", systemImage: "arrow.clockwise.icloud.fill")
+                                        .font(.subheadline.bold())
+                                        .foregroundStyle(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 10)
+                                        .background(Color.red)
+                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .padding(.vertical, 6)
+                        } else {
+                            HStack {
+                                Image(systemName: "checkmark.icloud.fill")
+                                    .foregroundStyle(.green)
+                                    .font(.title3)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("iCloud Drive activé")
+                                        .font(.subheadline.bold())
+                                    Text("Tes données sont sauvegardées dans le cloud")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
                     } else {
@@ -484,6 +520,23 @@ struct SettingsView: View {
         formatter.unitsStyle = .full
         formatter.locale = Locale(identifier: "fr_FR")
         lastBackupDisplay = formatter.localizedString(for: date, relativeTo: Date())
+    }
+
+    /// Retries the iCloud Drive copy after a failed sync. Forces a fresh backup
+    /// and updates the reactive flag so the UI flips back to the success state.
+    private func retryCloudSync() {
+        do {
+            _ = try AutoBackupService.backupNow(context: context)
+            refreshLastBackupDisplay()
+            // The @AppStorage flag updates itself via the backup service.
+            if AutoBackupService.lastCloudSyncFailed {
+                importMessage = "La sync iCloud a encore échoué.\n\nVérifie que ton dossier iCloud Drive est toujours accessible, puis reconfigure-le si besoin."
+            } else {
+                importMessage = "Sync iCloud réussie ✅"
+            }
+        } catch {
+            importMessage = "Échec de la sauvegarde\u{00A0}: \(error.localizedDescription)"
+        }
     }
 
     // MARK: - Weekday Pill

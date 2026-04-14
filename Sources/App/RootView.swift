@@ -26,9 +26,16 @@ struct RootView: View {
             AutoBackupService.runDailyBackupIfNeeded(context: context)
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active {
+            switch phase {
+            case .active:
                 AutoBackupService.runDailyBackupIfNeeded(context: context)
                 cloudFolderConfigured = AutoBackupService.isCloudFolderConfigured
+            case .background:
+                // Safety net: backup off-session changes (profile, templates, weight entries)
+                // before iOS suspends the app. Throttled to 30 min inside the service.
+                AutoBackupService.backupOnBackgroundIfNeeded(context: context)
+            default:
+                break
             }
         }
     }

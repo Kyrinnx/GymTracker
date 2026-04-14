@@ -26,7 +26,8 @@ struct ProgramLibraryView: View {
                     }
                 }
             }
-            .padding(.vertical)
+            .padding(.top, 16)
+            .padding(.bottom, 80)
         }
         .navigationTitle("Bibliothèque")
         .navigationBarTitleDisplayMode(.inline)
