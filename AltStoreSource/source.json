@@ -22,6 +22,14 @@
       "screenshotURLs": [],
       "versions": [
         {
+          "version": "1.18.0",
+          "date": "2026-04-14",
+          "localizedDescription": "Refonte body map : panel sombre + mannequin plus grand",
+          "downloadURL": "https://github.com/Kyrinnx/GymTracker/releases/download/v1.18.0/GymTracker.ipa",
+          "size": 23716623,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "1.17.0",
           "date": "2026-04-14",
           "localizedDescription": "Backup auto après chaque séance + fix scroll Bibliothèque",
