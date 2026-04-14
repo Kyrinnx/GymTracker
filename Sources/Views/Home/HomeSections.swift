@@ -136,17 +136,8 @@ struct HomeBodyStatsCard: View {
     var body: some View {
         VStack(spacing: 10) {
             HStack(spacing: 14) {
-                ZStack {
-                    RadialGradient(
-                        colors: [theme.color.accent.opacity(0.10), .clear],
-                        center: .center,
-                        startRadius: 10,
-                        endRadius: 80
-                    )
-                    BodyMapView(activeGroups: recentGroups)
-                        .frame(width: 100, height: 150)
-                }
-                .frame(width: 110, height: 160)
+                BodyMapView(activeGroups: recentGroups)
+                    .frame(width: 150, height: 225)
 
                 VStack(spacing: 8) {
                     HStack(spacing: 8) {
