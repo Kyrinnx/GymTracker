@@ -22,6 +22,14 @@
       "screenshotURLs": [],
       "versions": [
         {
+          "version": "1.15.0",
+          "date": "2026-04-14",
+          "localizedDescription": "Refactor architecture + accessibilité + typographie française",
+          "downloadURL": "https://github.com/Kyrinnx/GymTracker/releases/download/v1.15.0/GymTracker.ipa",
+          "size": 23682033,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "1.14.0",
           "date": "2026-04-14",
           "localizedDescription": "Audit complet : extraction d'AIImportSheet et ProgramLibraryView, validation des inputs partout (poids, reps, calories, IA), badges équipement dans Records et Historique, confirmations avant suppression de séances et de sauvegardes, optimisation des @Query, préservation de isFavorite à la duplication et l'export, typographie française complète (insécables sur unités et ponctuation).",
