@@ -49,11 +49,10 @@ struct ContentView: View {
                 tutorialCompleted = true
             }
         }
-        .onAppear {
+        .task {
             if !tutorialCompleted {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                    showTutorial = true
-                }
+                try? await Task.sleep(for: .milliseconds(600))
+                showTutorial = true
             }
         }
     }

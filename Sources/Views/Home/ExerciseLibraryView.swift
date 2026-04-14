@@ -156,6 +156,7 @@ struct ExerciseLibraryView: View {
                     .foregroundStyle(info.isFavorite ? Color.yellow : Color.secondary.opacity(0.4))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(info.isFavorite ? "Retirer \(info.name) des favoris" : "Ajouter \(info.name) aux favoris")
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(info.name)
@@ -322,7 +323,7 @@ struct ExerciseDetailSheet: View {
                         statCard(
                             label: "1RM ESTIMÉ",
                             value: bestOneRM > 0 ? "\(Int(bestOneRM)) kg" : "—",
-                            tooltip: "Formule Epley : kg × (1 + reps / 30)"
+                            tooltip: "Formule Epley\u{00A0}: kg × (1 + reps / 30)"
                         )
                     }
 

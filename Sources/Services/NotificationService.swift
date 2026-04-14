@@ -35,7 +35,7 @@ final class NotificationService {
             components.weekday = day
 
             let content = UNMutableNotificationContent()
-            content.title = "Prêt à soulever ?"
+            content.title = "Prêt à soulever\u{00A0}?"
             content.body = "C'est l'heure de ta séance — go go go 💪"
             content.sound = .default
 

@@ -46,6 +46,7 @@ struct TemplateListView: View {
                         .fontWeight(.bold)
                         .foregroundStyle(theme.color.accent)
                 }
+                .accessibilityLabel("Ajouter une séance personnalisée")
             }
         }
     }

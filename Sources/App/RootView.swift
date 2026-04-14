@@ -88,7 +88,7 @@ struct RootView: View {
                     cloudFolderConfigured = true
                 }
                 // Copy latest backup immediately
-                try? AutoBackupService.backupNow(context: context)
+                _ = try? AutoBackupService.backupNow(context: context)
             }
         }
     }

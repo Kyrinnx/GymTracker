@@ -44,7 +44,7 @@ struct HistoryView: View {
                         VStack(spacing: 10) {
                             Text("🏋️").font(.system(size: 50))
                             Text("Aucune séance").font(.headline)
-                            Text("Lance ta première séance !").font(.subheadline).foregroundStyle(.secondary)
+                            Text("Lance ta première séance\u{00A0}!").font(.subheadline).foregroundStyle(.secondary)
                         }
                         .padding(.vertical, 50)
                     } else {

@@ -7,7 +7,7 @@ struct BackupsListView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var backups: [BackupFile] = []
-    @State private var shareURL: URL?
+    @State private var shareItem: ExportURLItem?
     @State private var pendingRestore: BackupFile?
     @State private var resultMessage: String?
 
@@ -40,11 +40,11 @@ struct BackupsListView: View {
                 }
             }
             .task { reload() }
-            .sheet(item: $shareURL) { url in
-                ShareSheet(url: url)
+            .sheet(item: $shareItem) { item in
+                ShareSheet(url: item.url)
             }
             .confirmationDialog(
-                "Restaurer cette sauvegarde ?",
+                "Restaurer cette sauvegarde\u{00A0}?",
                 isPresented: Binding(
                     get: { pendingRestore != nil },
                     set: { if !$0 { pendingRestore = nil } }
@@ -106,7 +106,7 @@ struct BackupsListView: View {
                     Label("Restaurer", systemImage: "arrow.counterclockwise")
                 }
                 Button {
-                    shareURL = backup.url
+                    shareItem = ExportURLItem(url: backup.url)
                 } label: {
                     Label("Partager", systemImage: "square.and.arrow.up")
                 }
@@ -120,6 +120,7 @@ struct BackupsListView: View {
                     .font(.title3)
                     .foregroundStyle(.secondary)
             }
+            .accessibilityLabel("Options de la sauvegarde")
         }
         .padding(.vertical, 4)
     }
@@ -133,7 +134,7 @@ struct BackupsListView: View {
             try DataExportService.importAll(from: backup.url, into: context, replaceAll: replaceAll)
             resultMessage = "Restauration réussie ! 🎉"
         } catch {
-            resultMessage = "Échec : \(error.localizedDescription)"
+            resultMessage = "Échec\u{00A0}: \(error.localizedDescription)"
         }
         pendingRestore = nil
     }

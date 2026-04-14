@@ -72,10 +72,18 @@ struct SessionView: View {
         ZStack {
             mainContent
             if showRestOverlay {
-                restOverlay
+                SessionRestOverlay(
+                    remaining: restRemaining,
+                    total: activeRestDuration,
+                    onDismiss: dismissRest
+                )
             }
             if showXPOverlay, let breakdown = xpBreakdown {
-                xpOverlay(breakdown)
+                SessionXPOverlay(
+                    breakdown: breakdown,
+                    totalXP: totalXP,
+                    onContinue: dismissXPAndFinish
+                )
             }
         }
         .onAppear(perform: startElapsedTimer)
@@ -109,7 +117,7 @@ struct SessionView: View {
                 }
             }
         }
-        .confirmationDialog("Mettre à jour le programme ?", isPresented: $showUpdateTemplateConfirm, titleVisibility: .visible) {
+        .confirmationDialog("Mettre à jour le programme\u{00A0}?", isPresented: $showUpdateTemplateConfirm, titleVisibility: .visible) {
             Button("Oui, remplacer dans le programme") {
                 if let tpl = customTemplates.first(where: { $0.name == session.templateName }),
                    let tplEx = tpl.exercisesArray.first(where: { $0.name == oldExerciseName }) {
@@ -118,14 +126,14 @@ struct SessionView: View {
             }
             Button("Non, juste cette séance", role: .cancel) {}
         } message: {
-            Text("L'exercice « \(oldExerciseName) » existe dans ton programme « \(session.templateName) ». Veux-tu le remplacer par « \(editedName) » ?")
+            Text("L'exercice «\u{00A0}\(oldExerciseName)\u{00A0}» existe dans ton programme «\u{00A0}\(session.templateName)\u{00A0}». Veux-tu le remplacer par «\u{00A0}\(editedName)\u{00A0}»\u{00A0}?")
         }
         .sheet(isPresented: $showExercisePicker) {
             ExercisePickerView { name, group, equipment in
                 addExercise(name: name, group: group, equipment: equipment)
             }
         }
-        .confirmationDialog("Annuler la séance ?", isPresented: $showCancelConfirm, titleVisibility: .visible) {
+        .confirmationDialog("Annuler la séance\u{00A0}?", isPresented: $showCancelConfirm, titleVisibility: .visible) {
             Button("Annuler la séance", role: .destructive) {
                 cancelSession()
             }
@@ -133,7 +141,7 @@ struct SessionView: View {
         } message: {
             Text("Toute la progression sera perdue.")
         }
-        .confirmationDialog("Terminer la séance ?", isPresented: $showFinishConfirm, titleVisibility: .visible) {
+        .confirmationDialog("Terminer la séance\u{00A0}?", isPresented: $showFinishConfirm, titleVisibility: .visible) {
             Button("Terminer") {
                 finishSession()
             }
@@ -141,7 +149,7 @@ struct SessionView: View {
         } message: {
             Text("Les séries non complétées seront ignorées.")
         }
-        .confirmationDialog("Séance terminée !", isPresented: $showSaveAsTemplate, titleVisibility: .visible) {
+        .confirmationDialog("Séance terminée\u{00A0}!", isPresented: $showSaveAsTemplate, titleVisibility: .visible) {
             Button("Sauvegarder comme programme") {
                 saveSessionAsTemplate()
                 dismiss()
@@ -150,7 +158,7 @@ struct SessionView: View {
                 dismiss()
             }
         } message: {
-            Text("Veux-tu sauvegarder cette séance comme programme ?")
+            Text("Veux-tu sauvegarder cette séance comme programme\u{00A0}?")
         }
     }
 
@@ -217,6 +225,7 @@ struct SessionView: View {
                                 .clipShape(Circle())
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(isPaused ? "Reprendre la séance" : "Mettre en pause")
                     }
                     Text(isPaused ? "EN PAUSE" : "DURÉE")
                         .font(.caption2)
@@ -309,6 +318,7 @@ struct SessionView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(isFav ? "Retirer \(exercise.name) des favoris" : "Ajouter \(exercise.name) aux favoris")
                 VStack(alignment: .leading, spacing: 2) {
                     Text(exercise.name)
                         .font(.headline)
@@ -383,6 +393,7 @@ struct SessionView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Options pour \(exercise.name)")
                 Menu {
                     ForEach([0, 30, 60, 90, 120, 180], id: \.self) { duration in
                         Button {
@@ -519,6 +530,7 @@ struct SessionView: View {
             }
             .buttonStyle(.plain)
             .frame(width: 44)
+            .accessibilityLabel(set.done ? "Série \(set.order + 1) terminée" : "Marquer la série \(set.order + 1) comme terminée")
         }
         .padding(.vertical, 2)
     }
@@ -603,78 +615,12 @@ struct SessionView: View {
         .padding(.horizontal)
     }
 
-    // MARK: - Rest Overlay
-
-    private var restOverlay: some View {
-        ZStack {
-            Color.black.opacity(0.5)
-                .ignoresSafeArea()
-                .onTapGesture { dismissRest() }
-
-            VStack(spacing: 20) {
-                Text("REPOS")
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .tracking(2)
-                    .foregroundStyle(.secondary)
-
-                ZStack {
-                    Circle()
-                        .stroke(.quaternary, lineWidth: 8)
-                        .frame(width: 160, height: 160)
-                    Circle()
-                        .trim(from: 0, to: restProgress)
-                        .stroke(theme.color.accent, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                        .frame(width: 160, height: 160)
-                        .rotationEffect(.degrees(-90))
-                        .animation(.linear(duration: 1), value: restRemaining)
-                    VStack(spacing: 4) {
-                        Text(formattedRest)
-                            .font(.system(size: 40, weight: .black, design: .rounded))
-                            .monospacedDigit()
-                        Text("/ \(activeRestDuration)s")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Button {
-                    dismissRest()
-                } label: {
-                    Text("Passer")
-                        .font(.subheadline)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 12)
-                        .background(theme.color.gradient)
-                        .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(32)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 28))
-        }
-    }
-
     // MARK: - Computed
 
     private var formattedElapsed: String {
         let m = elapsedSeconds / 60
         let s = elapsedSeconds % 60
         return String(format: "%d:%02d", m, s)
-    }
-
-    private var formattedRest: String {
-        let m = restRemaining / 60
-        let s = restRemaining % 60
-        return String(format: "%d:%02d", m, s)
-    }
-
-    private var restProgress: CGFloat {
-        guard activeRestDuration > 0 else { return 0 }
-        return CGFloat(restRemaining) / CGFloat(activeRestDuration)
     }
 
     // MARK: - Actions
@@ -873,147 +819,8 @@ struct SessionView: View {
         }
     }
 
-    // MARK: - XP Overlay
-
-    private func xpOverlay(_ breakdown: XPBreakdown) -> some View {
-        let rank = Rank.from(xp: totalXP)
-        return ZStack {
-            Color.black.opacity(0.6)
-                .ignoresSafeArea()
-
-            VStack(spacing: 16) {
-                // Mascot: GIF for high ranks, icon for others
-                let isHighTier = [Rank.elite, .legende, .titan, .mythique].contains(rank)
-                if isHighTier {
-                    GIFView(name: rank.mascot)
-                        .frame(width: 60, height: 60)
-                        .clipped()
-                } else {
-                    Image(systemName: rank.icon)
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 60, height: 60)
-                        .background(
-                            LinearGradient(
-                                colors: [theme.color.accent, rank.color == .gray ? theme.color.accent.opacity(0.7) : rank.color],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .clipShape(Circle())
-                        .shadow(color: theme.color.accent.opacity(0.4), radius: 8, y: 4)
-                }
-
-                Text(rank.label)
-                    .font(.title2)
-                    .fontWeight(.black)
-                    .foregroundStyle(.white)
-
-                // XP breakdown
-                VStack(spacing: 6) {
-                    ForEach(breakdown.details, id: \.label) { detail in
-                        HStack(spacing: 8) {
-                            Image(systemName: detail.icon)
-                                .font(.caption)
-                                .foregroundStyle(theme.color.accent)
-                                .frame(width: 20)
-                            Text(detail.label)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            Text("+\(detail.value)")
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundStyle(.green)
-                        }
-                    }
-                    Divider().padding(.vertical, 2)
-                    HStack {
-                        Text("Total")
-                            .font(.headline)
-                            .fontWeight(.bold)
-                        Spacer()
-                        Text("+\(breakdown.total) XP")
-                            .font(.headline)
-                            .fontWeight(.black)
-                            .foregroundStyle(theme.color.accent)
-                    }
-                }
-                .padding(14)
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-
-                Text("\(totalXP) XP au total")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Button {
-                    dismissXPAndFinish()
-                } label: {
-                    Text("Continuer")
-                        .font(.headline)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(theme.color.gradient)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(28)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 28))
-            .padding(.horizontal, 24)
-            .transition(.scale.combined(with: .opacity))
-        }
-    }
-
     private func cancelSession() {
         stopAllTimers()
         dismiss()
-    }
-}
-
-// MARK: - Drag & Drop Delegate
-
-struct ExerciseDropDelegate: DropDelegate {
-    let target: ExerciseEntry
-    @Binding var dragged: ExerciseEntry?
-    let session: WorkoutSession
-
-    func dropEntered(info: DropInfo) {
-        guard let dragged = dragged, dragged !== target else { return }
-        withAnimation(.easeInOut(duration: 0.25)) {
-            let fromOrder = dragged.order
-            let toOrder = target.order
-            // Shift all exercises between the two positions
-            let sorted = session.exercisesArray.sorted { $0.order < $1.order }
-            for ex in sorted {
-                if fromOrder < toOrder {
-                    if ex.order > fromOrder && ex.order <= toOrder { ex.order -= 1 }
-                } else {
-                    if ex.order >= toOrder && ex.order < fromOrder { ex.order += 1 }
-                }
-            }
-            dragged.order = toOrder
-        }
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        dragged = nil
-        return true
-    }
-
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        DropProposal(operation: .move)
-    }
-
-    func dropExited(info: DropInfo) {
-        // Safety: reset if drag leaves all targets
-    }
-
-    func validateDrop(info: DropInfo) -> Bool {
-        true
     }
 }

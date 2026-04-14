@@ -153,7 +153,7 @@ struct XPView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "sparkles")
                         .foregroundStyle(.yellow)
-                    Text("Rang maximum atteint !")
+                    Text("Rang maximum atteint\u{00A0}!")
                         .font(.subheadline)
                         .fontWeight(.bold)
                         .foregroundStyle(.yellow)

@@ -27,7 +27,7 @@ struct TemplateEditorView: View {
             Section("Informations") {
                 TextField("Nom de la séance", text: $template.name)
                     .font(.headline)
-                TextField("Sous-titre (ex : Poussée lourde)", text: $template.subtitle)
+                TextField("Sous-titre (ex\u{00A0}: Poussée lourde)", text: $template.subtitle)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -160,14 +160,14 @@ struct TemplateEditorView: View {
             }
 
             HStack(spacing: 16) {
-                Stepper("Séries : \(exercise.defaultSets)", value: Binding(
+                Stepper("Séries\u{00A0}: \(exercise.defaultSets)", value: Binding(
                     get: { exercise.defaultSets },
                     set: { exercise.defaultSets = $0 }
                 ), in: 1...10)
                 .font(.caption)
             }
             HStack(spacing: 16) {
-                Stepper("Reps : \(exercise.defaultReps)", value: Binding(
+                Stepper("Reps\u{00A0}: \(exercise.defaultReps)", value: Binding(
                     get: { exercise.defaultReps },
                     set: { exercise.defaultReps = $0 }
                 ), in: 1...30)
@@ -211,8 +211,8 @@ struct TemplateEditorView: View {
                 }
 
                 Section("Séries et répétitions") {
-                    Stepper("Séries : \(configSets)", value: $configSets, in: 1...10)
-                    Stepper("Répétitions : \(configReps)", value: $configReps, in: 1...30)
+                    Stepper("Séries\u{00A0}: \(configSets)", value: $configSets, in: 1...10)
+                    Stepper("Répétitions\u{00A0}: \(configReps)", value: $configReps, in: 1...30)
                 }
             }
             .navigationTitle("Configurer")

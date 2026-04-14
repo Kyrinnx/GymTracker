@@ -25,7 +25,7 @@ struct SettingsView: View {
     @AppStorage("totalXP") private var totalXP: Int = 0
 
     // Data export / import
-    @State private var exportURL: URL?
+    @State private var exportItem: ExportURLItem?
     @State private var showImporter = false
     @State private var importMessage: String?
     @State private var showImportConfirm = false
@@ -232,7 +232,7 @@ struct SettingsView: View {
                                 Text("iCloud Drive non configuré")
                                     .font(.subheadline.bold())
                                     .foregroundStyle(.red)
-                                Text("Si tu supprimes l'app, tes données seront perdues !")
+                                Text("Si tu supprimes l'app, tes données seront perdues\u{00A0}!")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -263,7 +263,7 @@ struct SettingsView: View {
                             refreshLastBackupDisplay()
                             importMessage = AutoBackupService.isCloudFolderConfigured ? "Sauvegardé en local + iCloud Drive ✅" : "Sauvegardé en local ✅\n\nConfigure iCloud Drive pour sécuriser tes données."
                         } catch {
-                            importMessage = "Échec de la sauvegarde : \(error.localizedDescription)"
+                            importMessage = "Échec de la sauvegarde\u{00A0}: \(error.localizedDescription)"
                         }
                     } label: {
                         Label("Sauvegarder maintenant", systemImage: "tray.and.arrow.down.fill")
@@ -352,7 +352,7 @@ struct SettingsView: View {
                 BackupsListView()
             }
             .confirmationDialog(
-                "Refaire l'onboarding ?",
+                "Refaire l'onboarding\u{00A0}?",
                 isPresented: $showResetOnboarding,
                 titleVisibility: .visible
             ) {
@@ -362,7 +362,7 @@ struct SettingsView: View {
                 Button("Annuler", role: .cancel) {}
             }
             .confirmationDialog(
-                "Effacer toutes les données ?",
+                "Effacer toutes les données\u{00A0}?",
                 isPresented: $showWipeConfirm,
                 titleVisibility: .visible
             ) {
@@ -373,8 +373,8 @@ struct SettingsView: View {
             } message: {
                 Text("Une sauvegarde de sécurité sera enregistrée sur iCloud Drive et sur ton iPhone avant de tout effacer. Tu pourras restaurer plus tard si besoin.")
             }
-            .sheet(item: $exportURL) { url in
-                ShareSheet(url: url)
+            .sheet(item: $exportItem) { item in
+                ShareSheet(url: item.url)
             }
             .fileImporter(
                 isPresented: $showImporter,
@@ -384,7 +384,7 @@ struct SettingsView: View {
                 handleImportPick(result)
             }
             .confirmationDialog(
-                "Importer ce fichier ?",
+                "Importer ce fichier\u{00A0}?",
                 isPresented: $showImportConfirm,
                 titleVisibility: .visible
             ) {
@@ -408,10 +408,10 @@ struct SettingsView: View {
                 FolderPickerView { url in
                     AutoBackupService.setCloudFolder(url)
                     cloudFolderConfigured = true
-                    // Copy latest backup immediately
-                    if let latest = AutoBackupService.latestBackupURL {
+                    // Copy latest backup immediately if one exists
+                    if AutoBackupService.latestBackupURL != nil {
                         // Trigger a copy by re-running backup
-                        try? AutoBackupService.backupNow(context: context)
+                        _ = try? AutoBackupService.backupNow(context: context)
                         refreshLastBackupDisplay()
                     }
                     importMessage = "Sync iCloud Drive activée ✅\nLes prochains backups seront copiés automatiquement."
@@ -433,9 +433,9 @@ struct SettingsView: View {
     private func exportData() {
         do {
             let url = try DataExportService.exportAll(context: context)
-            exportURL = url
+            exportItem = ExportURLItem(url: url)
         } catch {
-            importMessage = "Échec de l'export : \(error.localizedDescription)"
+            importMessage = "Échec de l'export\u{00A0}: \(error.localizedDescription)"
         }
     }
 
@@ -446,7 +446,7 @@ struct SettingsView: View {
             pendingImportURL = url
             showImportConfirm = true
         case .failure(let error):
-            importMessage = "Lecture impossible : \(error.localizedDescription)"
+            importMessage = "Lecture impossible\u{00A0}: \(error.localizedDescription)"
         }
     }
 
@@ -456,7 +456,7 @@ struct SettingsView: View {
             importMessage = "Import réussi ! 🎉"
             refreshLastBackupDisplay()
         } catch {
-            importMessage = "Échec de l'import : \(error.localizedDescription)"
+            importMessage = "Échec de l'import\u{00A0}: \(error.localizedDescription)"
         }
         pendingImportURL = nil
     }
@@ -469,9 +469,9 @@ struct SettingsView: View {
             try DataExportService.wipeAll(context: context)
             totalXP = 0
             refreshLastBackupDisplay()
-            importMessage = "Données effacées ✅\n\nUne sauvegarde de sécurité a été créée dans :\n• iPhone : Fichiers → GymTracker → Sécurité\n• iCloud Drive → ton dossier → Sécurité\n\nPour restaurer : Réglages → Données → Importer un fichier"
+            importMessage = "Données effacées ✅\n\nUne sauvegarde de sécurité a été créée dans\u{00A0}:\n• iPhone\u{00A0}: Fichiers → GymTracker → Sécurité\n• iCloud Drive → ton dossier → Sécurité\n\nPour restaurer\u{00A0}: Réglages → Données → Importer un fichier"
         } catch {
-            importMessage = "Échec : \(error.localizedDescription)"
+            importMessage = "Échec\u{00A0}: \(error.localizedDescription)"
         }
     }
 
@@ -583,10 +583,11 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - URL Identifiable shim for sheet(item:)
+// MARK: - Identifiable wrapper for URL (used by sheet(item:))
 
-extension URL: Identifiable {
-    public var id: String { absoluteString }
+struct ExportURLItem: Identifiable {
+    let id = UUID()
+    let url: URL
 }
 
 // MARK: - ShareSheet wrapper around UIActivityViewController

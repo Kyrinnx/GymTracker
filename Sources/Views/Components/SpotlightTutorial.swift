@@ -36,15 +36,15 @@ struct TutorialOverlay: View {
     @State private var currentStep = 0
 
     private let steps: [TutorialStep] = [
-        TutorialStep(key: "_welcome", title: "Bienvenue !", message: "Petit tour rapide de l'app. Tape \"Suivant\" pour continuer.", icon: "hand.wave.fill"),
-        TutorialStep(key: "tab_home", title: "Accueil", message: "Ton tableau de bord : stats, programmes et lancement de séance.", icon: "house.fill"),
+        TutorialStep(key: "_welcome", title: "Bienvenue\u{00A0}!", message: "Petit tour rapide de l'app. Tape \"Suivant\" pour continuer.", icon: "hand.wave.fill"),
+        TutorialStep(key: "tab_home", title: "Accueil", message: "Ton tableau de bord\u{00A0}: stats, programmes et lancement de séance.", icon: "house.fill"),
         TutorialStep(key: "free_session", title: "Séance libre", message: "Lance une séance sans programme. Tu ajoutes tes exercices au fur et à mesure.", icon: "bolt.fill"),
         TutorialStep(key: "my_sessions", title: "Tes programmes", message: "Crée tes programmes avec le \"+\". Appui long pour dupliquer, favori ou supprimer.", icon: "rectangle.stack.fill"),
         TutorialStep(key: "ai_import", title: "Import IA", message: "Copie le prompt, envoie-le à ChatGPT ou Claude, colle le JSON pour importer.", icon: "sparkles"),
         TutorialStep(key: "tab_records", title: "Progrès", message: "Suis ton poids, records, 1RM et progression vers ton objectif.", icon: "trophy.fill"),
         TutorialStep(key: "tab_history", title: "Historique", message: "Toutes tes séances. Appui long pour sauvegarder comme programme.", icon: "clock.fill"),
         TutorialStep(key: "tab_settings", title: "Réglages", message: "Thème, rappels, objectif et sauvegardes iCloud.", icon: "gearshape.fill"),
-        TutorialStep(key: "_end", title: "C'est parti !", message: "Lance ta première séance et commence à progresser !", icon: "flame.fill"),
+        TutorialStep(key: "_end", title: "C'est parti\u{00A0}!", message: "Lance ta première séance et commence à progresser\u{00A0}!", icon: "flame.fill"),
     ]
 
     private var step: TutorialStep { steps[currentStep] }
@@ -167,7 +167,7 @@ struct TutorialOverlay: View {
                     Button {
                         advance()
                     } label: {
-                        Text(currentStep == steps.count - 1 ? "C'est parti !" : "Suivant")
+                        Text(currentStep == steps.count - 1 ? "C'est parti\u{00A0}!" : "Suivant")
                             .font(.subheadline.bold())
                             .foregroundStyle(.white)
                             .padding(.horizontal, 24)

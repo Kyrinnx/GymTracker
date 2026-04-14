@@ -21,7 +21,7 @@ struct ExercisePickerView: View {
 
     private var currentTitle: String {
         if selectedExercise != nil { return "Équipement" }
-        if selectedGroup != nil { return selectedGroup!.label }
+        if let group = selectedGroup { return group.label }
         return "Groupe musculaire"
     }
 
