@@ -26,7 +26,8 @@ struct GymTrackerApp: App {
         WindowGroup {
             RootView()
                 .environment(theme)
-                .preferredColorScheme(theme.mode.colorScheme)
+                // App is dark-only — the light mode has been removed from Settings.
+                .preferredColorScheme(.dark)
                 .tint(theme.color.accent)
         }
         .modelContainer(container)

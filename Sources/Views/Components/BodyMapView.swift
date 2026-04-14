@@ -76,9 +76,5 @@ struct BodyMapView: View {
             RoundedRectangle(cornerRadius: 16)
                 .strokeBorder(.white.opacity(0.08), lineWidth: 1)
         )
-        // Force the dark variant of the PNG assets (body_front_dark, etc.)
-        // so the body map keeps its stylised dark-panel look regardless of
-        // whether the rest of the app is in light or dark mode.
-        .environment(\.colorScheme, .dark)
     }
 }

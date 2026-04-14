@@ -52,7 +52,6 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        @Bindable var tm = theme
         NavigationStack {
             List {
                 // MARK: - Profil
@@ -133,16 +132,7 @@ struct SettingsView: View {
                     }
                 }
 
-                // MARK: - Apparence
-                Section("Apparence") {
-                    Picker("Mode", selection: $tm.mode) {
-                        ForEach(ThemeMode.allCases, id: \.self) { mode in
-                            Label(mode.label, systemImage: mode.icon).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                }
-
+                // MARK: - Thème
                 Section("Thème de couleur") {
                     LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 3), spacing: 14) {
                         ForEach(ThemeColor.allCases) { color in
