@@ -27,6 +27,47 @@ enum MuscleGroup: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Equipment Type
+enum EquipmentType: String, Codable, CaseIterable, Identifiable {
+    case barre, halteres, machine, poulie, pdc
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .barre: "Barre"
+        case .halteres: "Haltères"
+        case .machine: "Machine"
+        case .poulie: "Poulie"
+        case .pdc: "Poids du corps"
+        }
+    }
+    var shortLabel: String {
+        switch self {
+        case .barre: "Barre"
+        case .halteres: "Haltères"
+        case .machine: "Machine"
+        case .poulie: "Poulie"
+        case .pdc: "PDC"
+        }
+    }
+    var icon: String {
+        switch self {
+        case .barre: "figure.strengthtraining.traditional"
+        case .halteres: "dumbbell.fill"
+        case .machine: "gearshape.2.fill"
+        case .poulie: "arrow.up.arrow.down.circle"
+        case .pdc: "figure.walk"
+        }
+    }
+    /// Hint affiché dans l'en-tête KG
+    var weightHint: String {
+        switch self {
+        case .halteres: "/main"
+        case .barre, .machine, .poulie: "total"
+        case .pdc: "PDC"
+        }
+    }
+}
+
 // MARK: - Workout Set
 @Model
 final class WorkoutSet {
@@ -56,20 +97,23 @@ final class WorkoutSet {
 final class ExerciseEntry {
     var name: String = ""
     var muscleGroup: String = "chest"
+    var equipmentType: String = ""
     var scheme: String = ""
     var restSeconds: Int = 90
     var order: Int = 0
     @Relationship(deleteRule: .cascade) var sets: [WorkoutSet]? = []
 
-    init(name: String, muscleGroup: MuscleGroup, scheme: String = "", restSeconds: Int = 90, order: Int = 0) {
+    init(name: String, muscleGroup: MuscleGroup, equipment: EquipmentType? = nil, scheme: String = "", restSeconds: Int = 90, order: Int = 0) {
         self.name = name
         self.muscleGroup = muscleGroup.rawValue
+        self.equipmentType = equipment?.rawValue ?? ""
         self.scheme = scheme
         self.restSeconds = restSeconds
         self.order = order
         self.sets = []
     }
     var group: MuscleGroup { MuscleGroup(rawValue: muscleGroup) ?? .chest }
+    var equipment: EquipmentType? { EquipmentType(rawValue: equipmentType) }
     var setsArray: [WorkoutSet] { sets ?? [] }
     var doneSets: [WorkoutSet] { setsArray.filter { $0.done } }
     var totalVolume: Double { doneSets.reduce(0) { $0 + $1.volume } }

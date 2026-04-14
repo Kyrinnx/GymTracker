@@ -10,7 +10,7 @@ struct TemplateEditorView: View {
     var isNew: Bool = false
 
     @State private var showExercisePicker = false
-    @State private var pendingExercise: (name: String, group: MuscleGroup)?
+    @State private var pendingExercise: (name: String, group: MuscleGroup, equipment: EquipmentType)?
     @State private var showExerciseConfig = false
 
     // Config sheet state
@@ -86,8 +86,8 @@ struct TemplateEditorView: View {
             }
         }
         .sheet(isPresented: $showExercisePicker) {
-            ExercisePickerView { name, group in
-                pendingExercise = (name, group)
+            ExercisePickerView { name, group, equipment in
+                pendingExercise = (name, group, equipment)
                 configRestSeconds = 90
                 configSets = 3
                 configReps = 10
@@ -114,6 +114,15 @@ struct TemplateEditorView: View {
                 Text(exercise.name)
                     .font(.subheadline)
                     .fontWeight(.semibold)
+                if let eq = exercise.equipment {
+                    Text(eq.shortLabel)
+                        .font(.system(size: 9, weight: .semibold))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(theme.color.accent.opacity(0.10))
+                        .foregroundStyle(theme.color.accent)
+                        .clipShape(Capsule())
+                }
                 Text("—")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
@@ -180,6 +189,14 @@ struct TemplateEditorView: View {
                                 .foregroundStyle(theme.color.accent)
                             Text(pending.name)
                                 .font(.headline)
+                            Text(pending.equipment.shortLabel)
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(theme.color.accent.opacity(0.12))
+                                .foregroundStyle(theme.color.accent)
+                                .clipShape(Capsule())
                         }
                     }
                 }
@@ -214,6 +231,7 @@ struct TemplateEditorView: View {
                             let ex = CustomTemplateExercise(
                                 name: pending.name,
                                 muscleGroup: pending.group,
+                                equipment: pending.equipment,
                                 scheme: "\(configSets)x\(configReps)",
                                 restSeconds: configRestSeconds,
                                 defaultSets: configSets,

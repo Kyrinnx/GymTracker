@@ -276,6 +276,7 @@ struct HomeView: View {
             let entry = ExerciseEntry(
                 name: exTemplate.name,
                 muscleGroup: exTemplate.group,
+                equipment: exTemplate.equipment,
                 scheme: exTemplate.scheme,
                 restSeconds: 90,
                 order: index
@@ -317,6 +318,7 @@ struct HomeView: View {
             let entry = ExerciseEntry(
                 name: exTemplate.name,
                 muscleGroup: exTemplate.group,
+                equipment: exTemplate.equipment,
                 scheme: exTemplate.scheme,
                 restSeconds: exTemplate.restSeconds,
                 order: index
@@ -363,6 +365,7 @@ struct HomeView: View {
             let cex = CustomTemplateExercise(
                 name: ex.name,
                 muscleGroup: ex.group,
+                equipment: ex.equipment,
                 scheme: ex.scheme,
                 restSeconds: 90,
                 defaultSets: ex.defaultSets.count,
@@ -409,6 +412,7 @@ struct HomeView: View {
             let cex = CustomTemplateExercise(
                 name: ex.name,
                 muscleGroup: ex.group,
+                equipment: ex.equipment,
                 scheme: ex.scheme,
                 restSeconds: ex.restSeconds,
                 defaultSets: ex.defaultSets,
@@ -962,6 +966,7 @@ struct ProgramLibraryView: View {
             let cex = CustomTemplateExercise(
                 name: ex.name,
                 muscleGroup: ex.group,
+                equipment: ex.equipment,
                 scheme: ex.scheme,
                 restSeconds: 90,
                 defaultSets: ex.defaultSets.count,
@@ -1001,12 +1006,13 @@ private struct AIImportSheet: View {
         Réponds UNIQUEMENT avec du JSON valide, sans texte avant ni après.
 
         Si c'est UNE seule séance :
-        {"name": "Nom", "subtitle": "Description", "exercises": [{"name": "Nom exercice", "muscle": "chest", "sets": 4, "reps": "8-12", "rest": 90}]}
+        {"name": "Nom", "subtitle": "Description", "exercises": [{"name": "Nom exercice", "muscle": "chest", "equipment": "barre", "sets": 4, "reps": "8-12", "rest": 90}]}
 
         Si c'est PLUSIEURS séances (programme complet) :
         [{"name": "Séance 1", "subtitle": "...", "exercises": [...]}, {"name": "Séance 2", "subtitle": "...", "exercises": [...]}]
 
         Valeurs possibles pour "muscle" : chest, back, shoulders, arms, legs, core.
+        Valeurs possibles pour "equipment" : barre, halteres, machine, poulie, pdc.
         "reps" peut être un nombre (10) ou une fourchette ("8-12", "10-15"). Utilise des fourchettes quand c'est pertinent.
         "rest" est en secondes (30, 45, 60, 90, 120, 150, 180).
         """
@@ -1202,6 +1208,8 @@ private struct AIImportSheet: View {
                 let exName = exJSON["name"] as? String ?? "Exercice \(index + 1)"
                 let muscleRaw = exJSON["muscle"] as? String ?? "chest"
                 let muscleGroup = validMuscles.contains(muscleRaw) ? MuscleGroup(rawValue: muscleRaw)! : .chest
+                let equipmentRaw = exJSON["equipment"] as? String ?? "barre"
+                let equipmentType = EquipmentType(rawValue: equipmentRaw)
                 let sets = exJSON["sets"] as? Int ?? 3
                 let rest = exJSON["rest"] as? Int ?? 90
 
@@ -1224,6 +1232,7 @@ private struct AIImportSheet: View {
                 let exercise = CustomTemplateExercise(
                     name: exName,
                     muscleGroup: muscleGroup,
+                    equipment: equipmentType,
                     scheme: "\(sets)x\(repsStr)",
                     restSeconds: rest,
                     defaultSets: sets,

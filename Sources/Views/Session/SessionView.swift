@@ -121,8 +121,8 @@ struct SessionView: View {
             Text("L'exercice « \(oldExerciseName) » existe dans ton programme « \(session.templateName) ». Veux-tu le remplacer par « \(editedName) » ?")
         }
         .sheet(isPresented: $showExercisePicker) {
-            ExercisePickerView { name, group in
-                addExercise(name: name, group: group)
+            ExercisePickerView { name, group, equipment in
+                addExercise(name: name, group: group, equipment: equipment)
             }
         }
         .confirmationDialog("Annuler la séance ?", isPresented: $showCancelConfirm, titleVisibility: .visible) {
@@ -313,9 +313,20 @@ struct SessionView: View {
                     Text(exercise.name)
                         .font(.headline)
                         .fontWeight(.bold)
-                    Text(exercise.group.label)
-                        .font(.caption)
-                        .foregroundStyle(theme.color.accent)
+                    HStack(spacing: 6) {
+                        Text(exercise.group.label)
+                            .font(.caption)
+                            .foregroundStyle(theme.color.accent)
+                        if let eq = exercise.equipment {
+                            Text(eq.shortLabel)
+                                .font(.system(size: 10, weight: .semibold))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(theme.color.accent.opacity(0.10))
+                                .foregroundStyle(theme.color.accent)
+                                .clipShape(Capsule())
+                        }
+                    }
                 }
                 Spacer()
                 Menu {
@@ -325,6 +336,23 @@ struct SessionView: View {
                         showRenameAlert = true
                     } label: {
                         Label("Renommer", systemImage: "pencil")
+                    }
+                    // Equipment submenu
+                    Menu {
+                        ForEach(EquipmentType.allCases) { eq in
+                            Button {
+                                exercise.equipmentType = eq.rawValue
+                            } label: {
+                                HStack {
+                                    Label(eq.label, systemImage: eq.icon)
+                                    if exercise.equipment == eq {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        Label("Équipement", systemImage: "wrench.and.screwdriver")
                     }
                     if exercise.order > 0 {
                         Button {
@@ -392,8 +420,16 @@ struct SessionView: View {
             HStack(spacing: 0) {
                 Text("SÉRIE")
                     .frame(width: 44, alignment: .leading)
-                Text("KG")
-                    .frame(maxWidth: .infinity)
+                Group {
+                    if exercise.equipment == .pdc {
+                        Text("KG (+)")
+                    } else if exercise.equipment == .halteres {
+                        Text("KG /MAIN")
+                    } else {
+                        Text("KG")
+                    }
+                }
+                .frame(maxWidth: .infinity)
                 Text("REPS")
                     .frame(maxWidth: .infinity)
                 Text("")
@@ -504,7 +540,8 @@ struct SessionView: View {
                 }
             }
         )
-        return TextField("0", text: binding)
+        let placeholder = exercise.equipment == .pdc ? "PDC" : "0"
+        return TextField(placeholder, text: binding)
             .keyboardType(.decimalPad)
             .multilineTextAlignment(.center)
             .font(.subheadline)
@@ -742,9 +779,9 @@ struct SessionView: View {
         sorted[newIdx].order = temp
     }
 
-    private func addExercise(name: String, group: MuscleGroup) {
+    private func addExercise(name: String, group: MuscleGroup, equipment: EquipmentType? = nil) {
         let nextOrder = (session.exercisesArray.map(\.order).max() ?? -1) + 1
-        let entry = ExerciseEntry(name: name, muscleGroup: group, scheme: "", order: nextOrder)
+        let entry = ExerciseEntry(name: name, muscleGroup: group, equipment: equipment, scheme: "", order: nextOrder)
         for i in 0..<3 {
             if entry.sets == nil { entry.sets = [] }
             entry.sets?.append(WorkoutSet(kg: 0, reps: 0, done: false, order: i))
@@ -824,6 +861,7 @@ struct SessionView: View {
             let cex = CustomTemplateExercise(
                 name: ex.name,
                 muscleGroup: ex.group,
+                equipment: ex.equipment,
                 scheme: ex.scheme,
                 restSeconds: ex.restSeconds,
                 defaultSets: max(doneSetsCount, 1),

@@ -3,8 +3,17 @@ import Foundation
 struct ExerciseTemplate {
     let name: String
     let group: MuscleGroup
+    let equipment: EquipmentType?
     let scheme: String
     let defaultSets: [(kg: Double, reps: Int)]
+
+    init(name: String, group: MuscleGroup, equipment: EquipmentType? = nil, scheme: String, defaultSets: [(kg: Double, reps: Int)]) {
+        self.name = name
+        self.group = group
+        self.equipment = equipment
+        self.scheme = scheme
+        self.defaultSets = defaultSets
+    }
 }
 
 struct WorkoutTemplate: Identifiable {
